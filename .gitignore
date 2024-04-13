@@ -4,8 +4,6 @@ Storage/
 
 .python-version
 *.pt
-*.tsv
-*.json
 *.pickle
 *.safetensors
 *.bin
