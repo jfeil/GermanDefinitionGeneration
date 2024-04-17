@@ -14,7 +14,7 @@ collection = db[collection_name]
 
 
 def get_database_entry(title: str):
-    query = {"title": title}
+    query = query = {"$and": [{"beispiele": {"$exists": True}}, {"bedeutungen": {"$exists": True}}, {"title": title}]}
 
     # Retrieving documents that match the query
     return collection.find(query)[0]
