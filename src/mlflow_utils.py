@@ -1,4 +1,5 @@
-from typing import List
+from typing import List, Tuple
+
 import os
 
 mlflow_env = {'MLFLOW_TRACKING_URI': 'http://localhost:5000', 'MLFLOW_S3_ENDPOINT_URL': 'http://localhost:9000', 'MLFLOW_ENABLE_ARTIFACTS_PROGRESS_BAR': "False"}
@@ -24,3 +25,42 @@ def download_run_data(run_id: str):
         mlflow.artifacts.download_artifacts(run_id=run_id, dst_path=temp_path)
         with open(os.path.join(temp_path, 'eval_results_table.json')) as file:
             return json.load(file)
+
+
+class Experiment:
+    def __init__(self, system_prompts: Tuple[str], question_prompt: str, example_prompts: Tuple[Tuple[str, str, str]]):
+        self.system_prompts = system_prompts
+        self.question_prompt = question_prompt
+        self.example_prompts = example_prompts
+
+    def generate_examples(self):
+        examples = []
+        for context, word, meaning in self.example_prompts:
+            examples += [
+                {
+                    "role": "user",
+                    "content": self.question_prompt % (context, word)
+                },
+                {
+                    "role": "assistant",
+                    "content": meaning
+                }
+            ]
+        return examples
+
+    def __str__(self):
+        return f"System prompts:\n{self.system_prompts}\n\nQuestion prompt:\n{self.question_prompt}\n\nExample prompts:\n{self.example_prompts}"
+
+    def __repr__(self):
+        return str(self)
+
+def recreate_experiment(run_data):
+    example_prompt = eval(run_data.data.params['example_prompt'])
+    if len(example_prompt) > 0 and type(example_prompt[0]) == dict:
+        example_prompt = [('Die Liebe überwindet alle Grenzen', 'Liebe', 'inniges Gefühl der Zuneigung für jemanden oder für etwas')]
+    
+    return Experiment(
+        eval(run_data.data.params['system_prompt']),
+        run_data.data.params['question_prompt'],
+        example_prompt
+    )
