@@ -1,8 +1,10 @@
-from evaluate import load
+from typing import List
 import os
 
 
 def create_bertscore():
+    from evaluate import load
+
     bertscore = load("bertscore")
 
     def calc_bertscore(prediction, target):
@@ -17,6 +19,8 @@ def create_bertscore():
 
 
 def create_rougescore():
+    from evaluate import load
+
     rougescore = load("rouge")
 
     def calc_rougescore(prediction, target):
@@ -139,7 +143,7 @@ Zusätzliche Informationen, die vom Modell verwendet werden:
 key: targets
 value:
 
-f{ground_truth}
+{ground_truth}
 
 
 Definition der Metrik:
@@ -216,7 +220,10 @@ def parse_response(response):
     justification = ""
     for line in response.split("\n"):
         if score == -1 and line.startswith("Punktzahl: "):
-            score = int(line.split("Punktzahl: ")[1])
+            try:
+                score = int(line.split("Punktzahl: ")[1])
+            except:
+                pass
         if justification == "" and line.startswith("Begründung: "):
             justification = line.split("Begründung: ")[1]
     return score, justification
