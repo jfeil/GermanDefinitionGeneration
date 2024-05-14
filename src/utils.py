@@ -32,8 +32,15 @@ def sanitize_prediction(pred: str) -> str:
 
 
 class ResponseDataset:
-    def __init__(self, experiments: List[int]):
-        runs = get_run_list(experiments)
+    def __init__(self, experiments: List[int] = None, runs: List[str] = None):
+        if experiments is not None and type(experiments) is not list:
+            raise ValueError('experiments must be a list of ints or None')
+        if runs is not None and type(runs) is not list:
+            raise ValueError('runs must be a list of strings or None')
+
+        if experiments:
+            runs = get_run_list(experiments)
+
         self._overview = {}  # type: Dict[GT, Dict[str, str]]
 
         for run in tqdm(runs):
@@ -50,4 +57,28 @@ class ResponseDataset:
             if title != i["title"]:
                 continue
             return_val.append((i, self._overview[i]))
+        return return_val
+
+    def export_label_studio(self):
+        id_ = 0
+        return_val = []
+        for gt in self._overview:
+            for run in self._overview[gt]:
+                id_ += 1
+                return_val.append(
+                    {
+                        "id": id_,
+                        "data": {
+                            "title": gt["title"],
+                            "context_word": gt["context_word"],
+                            "context_sentence": gt["context_sentence"],
+                            "ground_truth": gt["ground_truth"],
+                            "prediction": self._overview[gt][run],
+                            "meta_info": {
+                                "run_id": run
+                            }
+                        }
+                    }
+                )
+
         return return_val
