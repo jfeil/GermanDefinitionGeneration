@@ -24,7 +24,8 @@ def del_(inp: str, words: List[str]) -> str:
 
 
 def sanitize_context(context: str) -> str:
-    return del_(context, [".", ",", "?", "!", ":", "…", ";", "‚", "‘", "«", "„"])
+    return del_(context, [".", "?", "!", ":", "…", ";", "‚", "‘", "»", "«", "„", "'", "(",
+                          "\"", "”", "“", "›", "‹"])
 
 
 def sanitize_prediction(pred: str) -> str:

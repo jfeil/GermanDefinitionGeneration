@@ -1,6 +1,7 @@
 from collections import defaultdict
 import re
 import pymongo
+from src.utils import sanitize_context
 
 # Connect to MongoDB
 mongodb_uri = "mongodb://localhost:27017/"
@@ -127,15 +128,22 @@ def create_set(data):
         for example in data["beispiele"][key]:
             if example == '{{Beispiele fehlen}}':
                 continue
-            in_sentence_keyword = re.findall("''[^']+''", "".join(example))
+            in_sentence_keyword = re.findall(r"''(.*?)''", "".join(example))
+            in_sentence_keyword = [sanitize_context(i) for i in in_sentence_keyword]
+            a = []
+            for x in in_sentence_keyword:
+                if not re.match(r"\[\[(.*?)]]", x):
+                    a.append(x)
+            in_sentence_keyword = a
+
             if len(in_sentence_keyword) >= 1:
-                in_sentence_keyword = in_sentence_keyword[0].strip(",").strip(".").strip(";").replace("''", "")
+                in_sentence_keyword = sanitize_context(in_sentence_keyword[0]).strip()
             else:
                 in_sentence_keyword = None
             if in_sentence_keyword and len(in_sentence_keyword.split()) > 1:
                 # to disable in sentence words with multiple ones e.g. "zwischen Juni und"
                 in_sentence_keyword = None
-            text = "".join(example)#.replace("''", "")
+            text = "".join(example)
             text = re.sub(r'<ref>.*?</ref>', '', text)
             return_data += [(
                 key_word, in_sentence_keyword, text, filter_bedeutung(data["bedeutungen"][key][0])
