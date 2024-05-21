@@ -1,7 +1,7 @@
 .ipynb_checkpoints/
 Wiktionary/datadir/
 Storage/
-AcademicCloud/
+HuggingFaceTGI/data
 
 .python-version
 *.pt
