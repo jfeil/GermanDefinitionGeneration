@@ -1,6 +1,7 @@
 from collections import defaultdict
 import re
 import pymongo
+from pymongo import UpdateOne
 from src.utils import sanitize_context
 
 # Connect to MongoDB
@@ -14,11 +15,33 @@ db = client[database_name]
 collection = db[collection_name]
 
 
+def set_datasplit(dataset, split):
+    updates = []
+    for d in dataset:
+        updates.append(UpdateOne({'_id': d['_id']}, {"$set": {"split": split}}))
+    collection.bulk_write(updates)
+
+
+def unset_datasplit(dataset):
+    updates = []
+    for d in dataset:
+        updates.append(UpdateOne({'_id': d['_id']}, {"$unset": {"split": 1}}))
+    collection.bulk_write(updates)
+
+
 def get_database_entry(title: str):
     query = query = {"$and": [{"beispiele": {"$exists": True}}, {"bedeutungen": {"$exists": True}}, {"title": title}]}
 
     # Retrieving documents that match the query
     return collection.find(query)[0]
+
+
+def get_all_entries(split=None, limit=0):
+    query = {"$and": [{"beispiele": {"$exists": True}}, {"bedeutungen": {"$exists": True}}]}
+    if split is not None:
+        query["$and"] += [{"split": split}]
+    # Retrieving documents that match the query
+    return collection.find(query, limit=limit)
 
 
 def get_text(title: str):
@@ -93,7 +116,7 @@ def extract_content(content):
             searching_bed = False
             searching_exa = True
             continue
-    
+
     max_index = 0
     ret_bed = {}
     ret_exa = {}
@@ -114,11 +137,18 @@ def extract_content(content):
 
 
 def filter_bedeutung(bed):
-    bed = re.sub('{{.*}}', '', bed).replace("[", "").replace("]", "")
-    return bed.strip()
+    # [[Gegenstand|Gegenstände]] --> Gegenstände
+    alternative_pattern = re.compile(r'\[\[([^|\]]+)\|([^|\]]+)\]\]')
+
+    # Replace them with the replacement part
+    text = re.sub(r'\{\{[^{}]*}}', '', bed)
+    text = alternative_pattern.sub(r'\2', text)
+    text = text.replace("[", "").replace("]", "")
+
+    return text.strip()
 
 
-def create_set(data):
+def create_set(data, replace_none=False):
     key_word = data["title"]
     return_data = []
 
@@ -139,15 +169,23 @@ def create_set(data):
             if len(in_sentence_keyword) >= 1:
                 in_sentence_keyword = sanitize_context(in_sentence_keyword[0]).strip()
             else:
-                in_sentence_keyword = None
+                if replace_none:
+                    in_sentence_keyword = key_word
+                else:
+                    in_sentence_keyword = None
             if in_sentence_keyword and len(in_sentence_keyword.split()) > 1:
                 # to disable in sentence words with multiple ones e.g. "zwischen Juni und"
-                in_sentence_keyword = None
+                if replace_none:
+                    in_sentence_keyword = key_word
+                else:
+                    in_sentence_keyword = None
             text = "".join(example)
             text = re.sub(r'<ref>.*?</ref>', '', text)
-            return_data += [(
-                key_word, in_sentence_keyword, text, filter_bedeutung(data["bedeutungen"][key][0])
-            )]
+            gt = filter_bedeutung(data["bedeutungen"][key][0])
+            if gt != "":
+                return_data += [(
+                    key_word, in_sentence_keyword, text, gt
+                )]
     return return_data
 
 
@@ -193,3 +231,7 @@ def clear_database():
         {},
         {"$unset": {"bedeutungen": "", "beispiele": ""}}
     )
+
+
+if __name__ == '__main__':
+    print(create_set(get_database_entry("Baby")))
