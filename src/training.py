@@ -51,8 +51,12 @@ def get_all_class_variables(cls, prefix):
     for base in cls.__mro__:
         for key, value in base.__dict__.items():
             # Filter out methods and special attributes
-            if type(value) is not classmethod and not callable(value) and not key.startswith('__'):
-                class_vars[prefix + "_" + key] = value
+            name = prefix + "_" + key
+            if (name not in class_vars and
+                    type(value) is not classmethod and
+                    not callable(value) and
+                    not key.startswith('__')):
+                class_vars[name] = value
     return class_vars
 
 
@@ -60,7 +64,7 @@ def get_all_class_variables(cls, prefix):
 @click.option("--seed", type=int, default=42)
 @click.option("--shuffle", type=bool, default=True)
 @click.argument('model_path', type=click.Path(exists=True, file_okay=True, dir_okay=False),
-                default='model_training/training/default.py')
+                default='model_training/training/experiment.py')
 @click.argument('dataset_path', type=click.Path(exists=True, file_okay=True, dir_okay=False),
                 default='model_training/datasets/default.py')
 @click.argument('output_dir', type=click.Path(file_okay=False, dir_okay=True, writable=True),
