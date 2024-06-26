@@ -90,8 +90,8 @@ def train(seed, shuffle, model_path, dataset_path, output_dir, adapter_output, e
     set_seed(seed)
     dataset_module = import_module_from_path(dataset_path)
     model_module = import_module_from_path(model_path)
-    params = get_all_class_variables(dataset_module.DefinitionDataset, "dataset")
-    params.update(get_all_class_variables(model_module.DefinitionModel, "model"))
+    params = get_all_class_variables(dataset_module.DefinitionDataset, "0_dataset")
+    params.update(get_all_class_variables(model_module.DefinitionModel, "1_model"))
 
     if model_module.DefinitionModel.is_adapter:
         is_adapter = True
