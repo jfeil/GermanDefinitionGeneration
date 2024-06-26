@@ -10,6 +10,8 @@ from src.utils import sanitize_context, sanitize_context_word
 class DefaultDataset:
     prompt_pattern = f"%s Was ist die Definition von %s? "
     tokenizer = None
+    extra_special_tokens = []
+    extra_tokens = []
 
     @staticmethod
     def _subset(dataset, subset: float):
@@ -90,5 +92,5 @@ class DefaultDataset:
 class DefinitionDataset(DefaultDataset):
     """
     Overwrite me :)
-    """
+"""
     pass
