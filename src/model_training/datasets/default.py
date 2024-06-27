@@ -16,32 +16,13 @@ class DefaultDataset:
     @staticmethod
     def _subset(dataset, subset: float):
         if subset < 1.0:
-            subset_val = int(len(dataset) * subset)
+            subset_value = int(len(dataset) * subset)
         elif subset > 1.0:
-            subset_val = int(subset)
+            subset_value = int(subset)
         else:
             raise ValueError(f'{subset} has to be larger or smaller than 1.0')
 
-        return dataset.select(range(subset_val))
-
-    @classmethod
-    def _data_loading(cls, shuffle: bool, seed: int, subset_train: float, subset_val: float) \
-            -> Tuple[Dataset, Dataset]:
-        # noinspection PyTypeChecker
-        dataset_train = Dataset.from_parquet("../dataset/v1/train.parquet", split="train")
-        # noinspection PyTypeChecker
-        dataset_val = Dataset.from_parquet("../dataset/v1/val.parquet", split="val")
-
-        if shuffle:
-            dataset_train = dataset_train.shuffle(seed=seed)
-            dataset_val = dataset_val.shuffle(seed=seed)
-
-        if subset_train > 0:
-            dataset_train = cls._subset(dataset_train, subset_train)
-        if subset_val > 0:
-            dataset_val = cls._subset(dataset_val, subset_val)
-
-        return dataset_train, dataset_val
+        return dataset.select(range(subset_value))
 
     @staticmethod
     def _sanitize_spaces(input_text: str) -> str:
@@ -71,25 +52,66 @@ class DefaultDataset:
         return inputs
 
     @classmethod
-    def _prepare_data(cls, dataset_train: Dataset, dataset_val: Dataset) -> Tuple[Dataset, Dataset]:
+    def _prepare_data(cls, dataset: Dataset) -> Dataset:
         if cls.tokenizer is None:
             raise ValueError("Tokenizer must be set before preprocessing.")
 
-        dataset_train = dataset_train.map(cls._preprocessing, batched=True)
-        dataset_val = dataset_val.map(cls._preprocessing, batched=True)
+        return dataset.map(cls._preprocessing, batched=True)
+
+
+class DefaultTrainValSet(DefaultDataset):
+    @classmethod
+    def _data_loading(cls, shuffle: bool, seed: int, subset_train: float, subset_val: float) \
+            -> Tuple[Dataset, Dataset]:
+        # noinspection PyTypeChecker
+        dataset_train = Dataset.from_parquet("../dataset/v1/train.parquet", split="train")
+        # noinspection PyTypeChecker
+        dataset_val = Dataset.from_parquet("../dataset/v1/val.parquet", split="val")
+
+        if shuffle:
+            dataset_train = dataset_train.shuffle(seed=seed)
+            dataset_val = dataset_val.shuffle(seed=seed)
+
+        if subset_train > 0:
+            dataset_train = cls._subset(dataset_train, subset_train)
+        if subset_val > 0:
+            dataset_val = cls._subset(dataset_val, subset_val)
 
         return dataset_train, dataset_val
 
     @classmethod
-    def create_dataset(cls, tokenizer, shuffle: bool, seed: int,
-                       subset_train: int | float = -1, subset_val: int | float = -1):
+    def create_dataset(cls, tokenizer, shuffle: bool, seed: int, subset_train: int | float = -1,
+                       subset_val: int | float = -1) -> Tuple[Dataset, Dataset]:
         cls.tokenizer = tokenizer
         dataset_train, dataset_val = cls._data_loading(shuffle, seed, subset_train, subset_val)
 
-        return cls._prepare_data(dataset_train, dataset_val)
+        return cls._prepare_data(dataset_train), cls._prepare_data(dataset_val)
 
 
-class DefinitionDataset(DefaultDataset):
+class DefaultTestSet(DefaultDataset):
+    @classmethod
+    def _data_loading(cls, shuffle: bool, seed: int, subset_test: float) -> Dataset:
+        # noinspection PyTypeChecker
+        dataset_test = Dataset.from_parquet("../dataset/v1/test.parquet", split="test")
+
+        if shuffle:
+            dataset_test = dataset_test.shuffle(seed=seed)
+
+        if subset_test > 0:
+            dataset_test = cls._subset(dataset_test, subset_test)
+
+        return dataset_test
+
+    @classmethod
+    def create_dataset(cls, tokenizer, shuffle: bool, seed: int,
+                       subset_test: int | float = -1) -> Dataset:
+        cls.tokenizer = tokenizer
+        dataset_test = cls._data_loading(shuffle, seed, subset_test)
+
+        return cls._prepare_data(dataset_test)
+
+
+class DefinitionDataset(DefaultTrainValSet):
     """
     Overwrite me :)
 """
