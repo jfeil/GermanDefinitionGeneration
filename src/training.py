@@ -60,16 +60,16 @@ def get_all_class_variables(cls, prefix):
 
 
 @click.command()
-@click.option("--seed", type=int, default=42)
-@click.option("--shuffle", type=bool, default=True)
 @click.argument('model_path', type=click.Path(exists=True, file_okay=True, dir_okay=False),
                 default='model_training/training/experiment.py')
 @click.argument('dataset_path', type=click.Path(exists=True, file_okay=True, dir_okay=False),
                 default='model_training/datasets/default.py')
-@click.argument('output_dir', type=click.Path(file_okay=False, dir_okay=True, writable=True),
-                default='../training_output/model')
-@click.argument('adapter_output', type=click.Path(file_okay=False, dir_okay=True, writable=True),
-                default='../training_output/adapter')
+@click.option('--output-dir', type=click.Path(file_okay=False, dir_okay=True, writable=True),
+              default='../training_output/model')
+@click.option('--adapter-dir', type=click.Path(file_okay=False, dir_okay=True, writable=True),
+              default='../training_output/adapter')
+@click.option("--seed", type=int, default=42)
+@click.option("--shuffle", type=bool, default=True)
 @click.option('--experiment-id', type=int, default=3)
 @click.option("--subset-train", type=float, default=-1)
 @click.option("--subset-val", type=float, default=-1)
@@ -83,7 +83,7 @@ def get_all_class_variables(cls, prefix):
 @click.option("--weight-decay", type=float, default=0.01)
 @click.option("--bf16", type=bool, default=True)
 @click.option("--fp16", type=int, default=False)
-def train(seed, shuffle, model_path, dataset_path, output_dir, adapter_output, experiment_id,
+def train(model_path, dataset_path, output_dir, adapter_dir, seed, shuffle, experiment_id,
           subset_train, subset_val, train_batch_size, eval_batch_size,
           epochs, eval_steps, init_lr, early_stop, early_stop_steps, weight_decay, bf16, fp16):
     """
@@ -175,7 +175,8 @@ def train(seed, shuffle, model_path, dataset_path, output_dir, adapter_output, e
         trainer.train()
 
         if is_adapter:
-            adapter_path = os.path.join(adapter_output, f"{model_module.DefinitionModel.adapter_config}_{mlflow.active_run().info.run_id}_{mlflow.active_run().info.run_name}")
+            adapter_path = os.path.join(adapter_dir,
+                                        f"{model_module.DefinitionModel.adapter_config}_{mlflow.active_run().info.run_id}_{mlflow.active_run().info.run_name}")
             model.save_adapter(adapter_path, model_module.DefinitionModel.adapter_name)
             mlflow.log_artifact(adapter_path)
         else:
