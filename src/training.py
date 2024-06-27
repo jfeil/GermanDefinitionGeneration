@@ -12,7 +12,6 @@ from transformers import DataCollatorForSeq2Seq, Seq2SeqTrainingArguments, Early
 sys.path.insert(0, '../')
 
 from src.ha_utils import HassioCallback
-from src.model_training.training.default import DefaultAdapterModel, DefaultFineTuneModel
 from src.mlflow_utils import mlflow
 
 
