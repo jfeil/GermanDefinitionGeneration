@@ -3,7 +3,7 @@ import aiohttp
 import asyncio
 from tqdm.notebook import tqdm
 import json
-from src.evaluation import parse_response
+from src.evaluation_utils import parse_response
 
 
 def generate_prompt(data, prompt_function):
