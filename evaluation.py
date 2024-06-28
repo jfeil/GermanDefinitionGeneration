@@ -1,18 +1,11 @@
 import logging
 import os
-import sys
+import tempfile
 
 import click
 from typing import List, Dict, Callable
 
 import numpy as np
-from evaluate import load
-from sentence_transformers import SentenceTransformer, util
-from sentence_transformers.evaluation import EmbeddingSimilarityEvaluator
-
-sys.path.insert(0, '../')
-
-from src.mlflow_utils import mlflow, get_run_list
 
 
 def placeholder():
@@ -29,6 +22,7 @@ def placeholder():
 
 
 def bertscore() -> Callable:
+    from evaluate import load
     metric = load("bertscore")
 
     def calc_metric(pred: List[str], target: List[str]) -> Dict[str, float]:
@@ -43,6 +37,7 @@ def bertscore() -> Callable:
 
 
 def sacrebleu() -> Callable:
+    from evaluate import load
     metric = load("sacrebleu")
 
     def calc_metric(pred: List[str], target: List[str]) -> Dict[str, float]:
@@ -55,6 +50,7 @@ def sacrebleu() -> Callable:
 
 
 def bleurt() -> Callable:
+    from evaluate import load
     metric = load("bleurt")
 
     def calc_metric(pred: List[str], target: List[str]) -> Dict[str, float]:
@@ -69,6 +65,7 @@ def bleurt() -> Callable:
 
 
 def meteor() -> Callable:
+    from evaluate import load
     metric = load("meteor")
 
     def calc_metric(pred: List[str], target: List[str]) -> Dict[str, float]:
@@ -103,6 +100,7 @@ def moverscore(embedding_model="distilbert-base-multilingual-cased") -> Callable
 
 
 def nist() -> Callable:
+    from evaluate import load
     metric = load("nist_mt")
 
     def calc_metric(pred: List[str], target: List[str]) -> Dict[str, float]:
@@ -115,6 +113,7 @@ def nist() -> Callable:
 
 
 def rouge() -> Callable:
+    from evaluate import load
     metric = load("rouge")
 
     def calc_metric(pred: List[str], target: List[str]) -> Dict[str, float]:
@@ -130,6 +129,8 @@ def rouge() -> Callable:
 
 
 def sentence_embeddings() -> Callable:
+    from sentence_transformers import SentenceTransformer, util
+
     model = SentenceTransformer('distiluse-base-multilingual-cased-v1')
 
     # Initialize the evaluator
@@ -147,6 +148,7 @@ def sentence_embeddings() -> Callable:
 
 
 def ter() -> Callable:
+    from evaluate import load
     metric = load("ter")
 
     def calc_metric(pred: List[str], target: List[str]) -> Dict[str, float]:
@@ -173,7 +175,7 @@ standard_metrics = {
 
 @click.command()
 @click.argument('test_set', type=click.Path(exists=True, file_okay=True, dir_okay=False),
-                default='model_training/datasets/default.py')
+                default='src/model_training/datasets/default.py')
 @click.option('-m',
               '--metrics',
               type=click.Choice(list(standard_metrics.keys()), case_sensitive=False),
@@ -181,8 +183,16 @@ standard_metrics = {
               multiple=True)
 @click.option('-e', '--experiment', 'experiments', type=int, multiple=True, default=[])
 @click.option('-r', '--run', 'selected_runs', type=str, multiple=True, default=[])
+@click.option('--per-sample', type=bool, default=False)
+@click.option("--seed", type=int, default=42)
+@click.option("--shuffle", type=bool, default=True)
+@click.option("--subset-test", type=float, default=-1)
 @click.option('--debug', type=bool, default=True)
-def evaluate(test_set, metrics, experiments, selected_runs, debug):
+def evaluate(test_set, metrics, experiments, selected_runs, per_sample, seed, shuffle, subset_test, debug):
+    from transformers import AutoTokenizer, AutoModel
+    from src.utils import import_module_from_path
+    from src.mlflow_utils import mlflow, get_run_list, download_run_artifact
+
     if debug:
         logging.basicConfig(level=logging.DEBUG)
     else:
@@ -190,6 +200,54 @@ def evaluate(test_set, metrics, experiments, selected_runs, debug):
     selected_runs += tuple(get_run_list(experiments))
     logging.debug("selected runs: %s", selected_runs)
     logging.debug("selected metrics: %s", metrics)
+
+    run = selected_runs[0]
+
+    run_data = mlflow.get_run(run)
+    if "1_model_is_adapter" not in run_data.data.params:
+        raise ValueError("Missing adapter information")
+    if "1_model_model_name" not in run_data.data.params:
+        raise ValueError("Missing model name information")
+
+    model_name = run_data.data.params["1_model_model_name"]
+    model = AutoModel.from_pretrained(model_name)
+
+    if run_data.data.params["1_model_is_adapter"] == "True":
+        import adapters
+
+        if "1_model_adapter_name" not in run_data.data.params:
+            raise ValueError("Missing model name information")
+        adapter_name = run_data.data.params["1_model_adapter_name"]
+        adapters.init(model)
+
+        # adapter needs to be reinstated
+        with tempfile.TemporaryDirectory() as temp_path:
+            adapter_path = download_run_artifact(run, "adapter_data", temp_path)
+            model.load_adapter(adapter_path)
+        model.set_active_adapters(adapter_name)
+        logging.debug("Adapter '%s' loaded." % adapter_name)
+    elif run_data.data.params["1_model_is_adapter"] == "False":
+        # model needs to be reinstated
+        with tempfile.TemporaryDirectory() as temp_path:
+            weight_path = download_run_artifact(run, "model_data", temp_path)
+            model.from_pretrained(weight_path)
+        logging.debug("Fine-tuned Model loaded.")
+    else:
+        raise ValueError("Invalid adapter information")
+
+    model.eval()
+    return
+
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    dataset_module = import_module_from_path(test_set)
+
+    if dataset_module.DefinitionDataset.extra_tokens:
+        tokenizer.add_tokens(dataset_module.DefinitionDataset.extra_tokens)
+    if dataset_module.DefinitionDataset.extra_special_tokens:
+        tokenizer.add_tokens(dataset_module.DefinitionDataset.extra_special_tokens)
+    model.resize_token_embeddings(len(tokenizer))
+    dataset_test = dataset_module.DefaultTestSet.create_dataset(tokenizer, shuffle=shuffle, seed=seed,
+                                                                subset_test=subset_test)
 
 
 def debug_metrics():
@@ -211,4 +269,4 @@ def debug_metrics():
 
 
 if __name__ == '__main__':
-    debug_metrics()
+    evaluate()

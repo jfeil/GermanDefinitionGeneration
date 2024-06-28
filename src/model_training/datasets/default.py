@@ -64,9 +64,9 @@ class DefaultTrainValSet(DefaultDataset):
     def _data_loading(cls, shuffle: bool, seed: int, subset_train: float, subset_val: float) \
             -> Tuple[Dataset, Dataset]:
         # noinspection PyTypeChecker
-        dataset_train = Dataset.from_parquet("../dataset/v1/train.parquet", split="train")
+        dataset_train = Dataset.from_parquet("/home/jfeil/MasterThesis/dataset/v1/train.parquet", split="train")
         # noinspection PyTypeChecker
-        dataset_val = Dataset.from_parquet("../dataset/v1/val.parquet", split="val")
+        dataset_val = Dataset.from_parquet("/home/jfeil/MasterThesis/dataset/v1/val.parquet", split="val")
 
         if shuffle:
             dataset_train = dataset_train.shuffle(seed=seed)
@@ -92,7 +92,7 @@ class DefaultTestSet(DefaultDataset):
     @classmethod
     def _data_loading(cls, shuffle: bool, seed: int, subset_test: float) -> Dataset:
         # noinspection PyTypeChecker
-        dataset_test = Dataset.from_parquet("../dataset/v1/test.parquet", split="test")
+        dataset_test = Dataset.from_parquet("/home/jfeil/MasterThesis/dataset/v1/test.parquet", split="test")
 
         if shuffle:
             dataset_test = dataset_test.shuffle(seed=seed)

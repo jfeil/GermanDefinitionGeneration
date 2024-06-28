@@ -1,27 +1,19 @@
 import os
-import sys
 
 import click
-from adapters import AdapterTrainer
-from transformers import DataCollatorForSeq2Seq, Seq2SeqTrainingArguments, EarlyStoppingCallback, Seq2SeqTrainer
-
-from src.utils import set_seed, import_module_from_path, get_all_class_variables
-
-sys.path.insert(0, '../')
-
-from src.ha_utils import HassioCallback
-from src.mlflow_utils import mlflow
 
 
 @click.command()
 @click.argument('model_path', type=click.Path(exists=True, file_okay=True, dir_okay=False),
-                default='model_training/training/experiment.py')
+                default='src/model_training/training/experiment.py')
 @click.argument('dataset_path', type=click.Path(exists=True, file_okay=True, dir_okay=False),
-                default='model_training/datasets/default.py')
-@click.option('--output-dir', type=click.Path(file_okay=False, dir_okay=True, writable=True),
-              default='../training_output/model')
-@click.option('--adapter-dir', type=click.Path(file_okay=False, dir_okay=True, writable=True),
-              default='../training_output/adapter')
+                default='src/model_training/datasets/default.py')
+@click.option('--checkpoint-dir', type=click.Path(file_okay=False, dir_okay=True, writable=True),
+              default='output/checkpoint')
+@click.option('--model-output-dir', type=click.Path(file_okay=False, dir_okay=True, writable=True),
+              default='output/model')
+@click.option('--adapter-output-dir', type=click.Path(file_okay=False, dir_okay=True, writable=True),
+              default='output/adapter')
 @click.option("--seed", type=int, default=42)
 @click.option("--shuffle", type=bool, default=True)
 @click.option('--experiment-id', type=int, default=3)
@@ -37,13 +29,20 @@ from src.mlflow_utils import mlflow
 @click.option("--weight-decay", type=float, default=0.01)
 @click.option("--bf16", type=bool, default=True)
 @click.option("--fp16", type=int, default=False)
-def train(model_path, dataset_path, output_dir, adapter_dir, seed, shuffle, experiment_id,
+def train(model_path, dataset_path, checkpoint_dir, model_output_dir, adapter_output_dir, seed, shuffle, experiment_id,
           subset_train, subset_val, train_batch_size, eval_batch_size,
           epochs, eval_steps, init_lr, early_stop, early_stop_steps, weight_decay, bf16, fp16):
     """
     Train LLMs
 
     """
+    from adapters import AdapterTrainer
+    from transformers import DataCollatorForSeq2Seq, Seq2SeqTrainingArguments, EarlyStoppingCallback, Seq2SeqTrainer
+
+    from src.utils import set_seed, import_module_from_path, get_all_class_variables
+    from src.ha_utils import HassioCallback
+    from src.mlflow_utils import mlflow
+
     set_seed(seed)
     dataset_module = import_module_from_path(dataset_path)
     model_module = import_module_from_path(model_path)
@@ -90,7 +89,7 @@ def train(model_path, dataset_path, output_dir, adapter_dir, seed, shuffle, expe
             per_device_train_batch_size=train_batch_size,
             per_device_eval_batch_size=eval_batch_size,
             logging_steps=10,
-            output_dir=output_dir,
+            output_dir=checkpoint_dir,
             overwrite_output_dir=True,
             remove_unused_columns=True,
             predict_with_generate=True,
@@ -129,12 +128,13 @@ def train(model_path, dataset_path, output_dir, adapter_dir, seed, shuffle, expe
         trainer.train()
 
         if is_adapter:
-            adapter_path = os.path.join(adapter_dir,
-                                        f"{model_module.DefinitionModel.adapter_config}_{mlflow.active_run().info.run_id}_{mlflow.active_run().info.run_name}")
+            adapter_path = os.path.join(adapter_output_dir, f"adapter_data")
             model.save_adapter(adapter_path, model_module.DefinitionModel.adapter_name)
             mlflow.log_artifact(adapter_path)
         else:
-            pass
+            model_path = os.path.join(model_output_dir, f"model_data")
+            model.save_pretrained(model_path)
+            mlflow.log_artifact(model_path)
 
 
 if __name__ == '__main__':

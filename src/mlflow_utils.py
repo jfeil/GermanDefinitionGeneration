@@ -24,13 +24,22 @@ def get_run_list(experiment_ids: List[int]):
     return runs
 
 
+def download_run_artifact(run_id: str, artifact_name: str, temp_path: str):
+    mlflow.artifacts.download_artifacts(run_id=run_id, artifact_path=artifact_name, dst_path=temp_path)
+    if not os.path.exists(path := os.path.join(temp_path, artifact_name)):
+        return None
+    else:
+        return path
+
+
 def download_run_data(run_id: str, file_name: str = 'eval_results_table.json'):
     with tempfile.TemporaryDirectory() as temp_path:
-        mlflow.artifacts.download_artifacts(run_id=run_id, dst_path=temp_path)
-        if not os.path.exists(path := os.path.join(temp_path, file_name)):
+        path = download_run_artifact(run_id, file_name, temp_path)
+        if path is None:
             return None
-        with open(path) as file:
-            return json.load(file)
+        else:
+            with open(path) as file:
+                return json.load(file)
 
 
 class Experiment:
