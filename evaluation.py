@@ -183,15 +183,19 @@ standard_metrics = {
               multiple=True)
 @click.option('-e', '--experiment', 'experiments', type=int, multiple=True, default=[])
 @click.option('-r', '--run', 'selected_runs', type=str, multiple=True, default=[])
+@click.option('--batch-size', type=int, default=128)
 @click.option('--per-sample', type=bool, default=False)
 @click.option("--seed", type=int, default=42)
 @click.option("--shuffle", type=bool, default=True)
 @click.option("--subset-test", type=float, default=-1)
 @click.option('--debug', type=bool, default=True)
-def evaluate(test_set, metrics, experiments, selected_runs, per_sample, seed, shuffle, subset_test, debug):
-    from transformers import AutoTokenizer, AutoModel
+def evaluate(test_set, metrics, experiments, selected_runs, batch_size, per_sample, seed, shuffle, subset_test, debug):
+    import torch
+    from transformers import GenerationConfig, AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
     from src.utils import import_module_from_path
     from src.mlflow_utils import mlflow, get_run_list, download_run_artifact
+
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     if debug:
         logging.basicConfig(level=logging.DEBUG)
@@ -208,9 +212,24 @@ def evaluate(test_set, metrics, experiments, selected_runs, per_sample, seed, sh
         raise ValueError("Missing adapter information")
     if "1_model_model_name" not in run_data.data.params:
         raise ValueError("Missing model name information")
+    if "0_dataset_prompt_pattern" not in run_data.data.params:
+        raise ValueError("Missing dataset prompt pattern information")
+    if "1_model_tokenizer_legacy" not in run_data.data.params:
+        raise ValueError("Missing tokenizer legacy information")
 
     model_name = run_data.data.params["1_model_model_name"]
-    model = AutoModel.from_pretrained(model_name)
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+
+    tokenizer = AutoTokenizer.from_pretrained(model_name, legacy=run_data.data.params["1_model_tokenizer_legacy"])
+    dataset_module = import_module_from_path(test_set)
+
+    dataset_module.DefaultTestSet.prompt_pattern = run_data.data.params["0_dataset_prompt_pattern"]
+
+    if dataset_module.DefinitionDataset.extra_tokens:
+        tokenizer.add_tokens(dataset_module.DefinitionDataset.extra_tokens)
+    if dataset_module.DefinitionDataset.extra_special_tokens:
+        tokenizer.add_tokens(dataset_module.DefinitionDataset.extra_special_tokens)
+    model.resize_token_embeddings(len(tokenizer))
 
     if run_data.data.params["1_model_is_adapter"] == "True":
         import adapters
@@ -236,18 +255,22 @@ def evaluate(test_set, metrics, experiments, selected_runs, per_sample, seed, sh
         raise ValueError("Invalid adapter information")
 
     model.eval()
-    return
+    model.to(device)
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    dataset_module = import_module_from_path(test_set)
-
-    if dataset_module.DefinitionDataset.extra_tokens:
-        tokenizer.add_tokens(dataset_module.DefinitionDataset.extra_tokens)
-    if dataset_module.DefinitionDataset.extra_special_tokens:
-        tokenizer.add_tokens(dataset_module.DefinitionDataset.extra_special_tokens)
-    model.resize_token_embeddings(len(tokenizer))
     dataset_test = dataset_module.DefaultTestSet.create_dataset(tokenizer, shuffle=shuffle, seed=seed,
                                                                 subset_test=subset_test)
+
+    def data():
+        for item in dataset_test:
+            yield item["debug_text"]
+
+    pipe = pipeline('text2text-generation', model=model, tokenizer=tokenizer, device=device)
+
+    preds = []
+
+    from tqdm.auto import tqdm
+    for i, out in enumerate(tqdm(pipe(data(), batch_size=batch_size, max_length=50, num_beams=5, early_stopping=True), total=len(dataset_test))):
+        preds += out["generated_text"]
 
 
 def debug_metrics():
