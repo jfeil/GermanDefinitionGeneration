@@ -69,8 +69,8 @@ class DefaultTrainValSet(DefaultDataset):
         dataset_val = Dataset.from_parquet("/home/jfeil/MasterThesis/dataset/v1/val.parquet", split="val")
 
         if shuffle:
-            dataset_train = dataset_train.shuffle(seed=seed)
-            dataset_val = dataset_val.shuffle(seed=seed)
+            dataset_train = dataset_train.shuffle(seed=seed).flatten_indices()
+            dataset_val = dataset_val.shuffle(seed=seed).flatten_indices()
 
         if subset_train > 0:
             dataset_train = cls._subset(dataset_train, subset_train)
@@ -95,7 +95,7 @@ class DefaultTestSet(DefaultDataset):
         dataset_test = Dataset.from_parquet("/home/jfeil/MasterThesis/dataset/v1/test.parquet", split="test")
 
         if shuffle:
-            dataset_test = dataset_test.shuffle(seed=seed)
+            dataset_test = dataset_test.shuffle(seed=seed).flatten_indices()
 
         if subset_test > 0:
             dataset_test = cls._subset(dataset_test, subset_test)
