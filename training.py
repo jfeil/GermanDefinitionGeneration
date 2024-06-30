@@ -28,10 +28,11 @@ import click
 @click.option("--early-stop-steps", type=int, default=10)
 @click.option("--weight-decay", type=float, default=0.01)
 @click.option("--bf16", type=bool, default=True)
-@click.option("--fp16", type=int, default=False)
+@click.option("--fp16", type=bool, default=False)
+@click.option("--keep-checkpoints", type=bool, default=False)
 def train(model_path, dataset_path, checkpoint_dir, model_output_dir, adapter_output_dir, seed, shuffle, experiment_id,
           subset_train, subset_val, train_batch_size, eval_batch_size,
-          epochs, eval_steps, init_lr, early_stop, early_stop_steps, weight_decay, bf16, fp16):
+          epochs, eval_steps, init_lr, early_stop, early_stop_steps, weight_decay, bf16, fp16, keep_checkpoints):
     """
     Train LLMs
 
@@ -135,6 +136,12 @@ def train(model_path, dataset_path, checkpoint_dir, model_output_dir, adapter_ou
             model_path = os.path.join(model_output_dir, f"model_data")
             model.save_pretrained(model_path)
             mlflow.log_artifact(model_path)
+
+        if not keep_checkpoints:
+            import glob
+            import shutil
+            for f in glob.glob(os.path.join(checkpoint_dir, "checkpoint-*")):
+                shutil.rmtree(f)
 
 
 if __name__ == '__main__':
