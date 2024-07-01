@@ -176,7 +176,7 @@ standard_metrics = {
 @click.option("--seed", type=int, default=42)
 @click.option("--shuffle", type=bool, default=True)
 @click.option("--subset-test", type=float, default=-1)
-@click.option('--debug', type=bool, default=True)
+@click.option('--debug', type=bool, default=False)
 def evaluate(test_set, metrics, experiments, selected_runs, batch_size, seed, shuffle, subset_test, debug):
     import torch
     from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
@@ -186,10 +186,12 @@ def evaluate(test_set, metrics, experiments, selected_runs, batch_size, seed, sh
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     if debug:
-        logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(level=logging.DEBUG)
     else:
-        logging.basicConfig(level=logging.WARNING)
+        logging.basicConfig(level=logging.INFO)
     selected_runs += tuple(get_run_list(experiments))
+    selected_runs = tuple(set(selected_runs))
+
     logging.info("selected runs: %s", selected_runs)
     logging.info("selected metrics: %s", metrics)
 
