@@ -7,7 +7,6 @@ from collections import defaultdict
 import click
 from typing import List, Dict, Callable
 
-import numpy as np
 import pandas
 
 

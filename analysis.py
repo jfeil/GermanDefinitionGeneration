@@ -1,7 +1,6 @@
 import itertools
 import logging
 import re
-import tempfile
 from collections import defaultdict
 
 import click
