@@ -5,7 +5,7 @@ import click
 
 @click.command()
 @click.argument('model_path', type=click.Path(exists=True, file_okay=True, dir_okay=False),
-                default='src/model_training/training/experiment.py')
+                default='src/model_training/training/experiment_adapter.py')
 @click.argument('dataset_path', type=click.Path(exists=True, file_okay=True, dir_okay=False),
                 default='src/model_training/datasets/default.py')
 @click.option('--checkpoint-dir', type=click.Path(file_okay=False, dir_okay=True, writable=True),
