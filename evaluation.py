@@ -1,6 +1,8 @@
 import gc
+import itertools
 import logging
 import os
+import subprocess
 import tempfile
 from collections import defaultdict
 
@@ -8,6 +10,8 @@ import click
 from typing import List, Dict, Callable
 
 import pandas
+from rich.progress import track, Progress
+from tqdm.auto import tqdm
 
 
 def placeholder():
@@ -101,7 +105,7 @@ class Nist:
     def calc_metric(self, pred: List[str], target: List[str]) -> Dict[str, List[float]]:
         scores = self.metric.compute(predictions=pred, references=target)['nist_mt']
         return {
-            'nist_score': [scores]*len(target),
+            'nist_score': [scores] * len(target),
         }
 
 
@@ -161,7 +165,13 @@ standard_metrics = {
 }
 
 
-@click.command()
+@click.group()
+def cli():
+    pass
+
+
+@cli.command()
+@click.argument('run', type=str)
 @click.argument('test_set', type=click.Path(exists=True, file_okay=True, dir_okay=False),
                 default='src/model_training/datasets/default.py')
 @click.option('-m',
@@ -169,18 +179,16 @@ standard_metrics = {
               type=click.Choice(list(standard_metrics.keys()), case_sensitive=False),
               default=standard_metrics.keys(),
               multiple=True)
-@click.option('-e', '--experiment', 'experiments', type=int, multiple=True, default=[])
-@click.option('-r', '--run', 'selected_runs', type=str, multiple=True, default=[])
 @click.option('--batch-size', type=int, default=32)
 @click.option("--seed", type=int, default=42)
 @click.option("--shuffle", type=bool, default=True)
 @click.option("--subset-test", type=float, default=-1)
 @click.option('--debug', type=bool, default=False)
-def evaluate(test_set, metrics, experiments, selected_runs, batch_size, seed, shuffle, subset_test, debug):
+def evaluate(run, test_set, metrics, batch_size, seed, shuffle, subset_test, debug):
     import torch
     from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
     from src.utils import import_module_from_path
-    from src.mlflow_utils import mlflow, get_run_list, download_run_artifact
+    from src.mlflow_utils import mlflow, download_run_artifact
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -188,106 +196,141 @@ def evaluate(test_set, metrics, experiments, selected_runs, batch_size, seed, sh
         logging.basicConfig(level=logging.DEBUG)
     else:
         logging.basicConfig(level=logging.INFO)
+
+    run_data = mlflow.get_run(run)
+    if "1_model_is_adapter" not in run_data.data.params:
+        raise ValueError("Missing adapter information")
+    if "1_model_model_name" not in run_data.data.params:
+        raise ValueError("Missing model name information")
+    if "0_dataset_prompt_pattern" not in run_data.data.params:
+        raise ValueError("Missing dataset prompt pattern information")
+    if "1_model_tokenizer_legacy" not in run_data.data.params:
+        raise ValueError("Missing tokenizer legacy information")
+
+    model_name = run_data.data.params["1_model_model_name"]
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+
+    tokenizer = AutoTokenizer.from_pretrained(model_name, legacy=run_data.data.params["1_model_tokenizer_legacy"])
+    dataset_module = import_module_from_path(test_set)
+
+    dataset_module.DefaultTestSet.prompt_pattern = run_data.data.params["0_dataset_prompt_pattern"]
+
+    if run_data.data.params['0_dataset_extra_tokens']:
+        tokenizer.add_tokens(eval(run_data.data.params['0_dataset_extra_tokens']))
+    if run_data.data.params['0_dataset_extra_special_tokens']:
+        tokenizer.add_tokens(eval(run_data.data.params['0_dataset_extra_special_tokens']))
+    model.resize_token_embeddings(len(tokenizer))
+
+    if run_data.data.params["1_model_is_adapter"] == "True":
+        import adapters
+
+        if "1_model_adapter_name" not in run_data.data.params:
+            raise ValueError("Missing model name information")
+        adapter_name = run_data.data.params["1_model_adapter_name"]
+        adapters.init(model)
+
+        # adapter needs to be reinstated
+        with tempfile.TemporaryDirectory() as temp_path:
+            adapter_path = download_run_artifact(run, "adapter_data", temp_path)
+            model.load_adapter(adapter_path)
+        model.set_active_adapters(adapter_name)
+        logging.info("Adapter '%s' loaded." % adapter_name)
+    elif run_data.data.params["1_model_is_adapter"] == "False":
+        # model needs to be reinstated
+        with tempfile.TemporaryDirectory() as temp_path:
+            weight_path = download_run_artifact(run, "model_data", temp_path)
+            model.from_pretrained(weight_path)
+        logging.info("Fine-tuned Model loaded.")
+    else:
+        raise ValueError("Invalid adapter information")
+
+    model.eval()
+    model.to(device)
+
+    dataset_test = dataset_module.DefaultTestSet.create_dataset(tokenizer, shuffle=shuffle, seed=seed,
+                                                                subset_test=subset_test)
+    logging.info(f"{len(dataset_test)} test examples loaded.")
+    pipe = pipeline('text2text-generation', model=model, tokenizer=tokenizer, device=device)
+
+    test_predictions = {
+        'title': dataset_test['title'],
+        'context_sentence': dataset_test['context_sentence'],
+        'context_word': dataset_test['context_word'],
+        'gt': dataset_test['gt'],
+        'prediction': []
+    }
+
+    def data_generator():
+        for item in dataset_test:
+            yield item["debug_text"]
+
+    from tqdm.auto import tqdm
+    for out in tqdm(pipe(data_generator(), batch_size=batch_size, max_length=50, num_beams=5, early_stopping=True),
+                    total=len(dataset_test), desc="Inferencing"):
+        assert len(out) == 1
+        test_predictions['prediction'].append(out[0]["generated_text"])
+
+    df = pandas.DataFrame.from_dict(test_predictions)
+
+    del pipe, model, tokenizer
+    torch.cuda.empty_cache()
+
+    for metric in tqdm(metrics, desc="Evaluating"):
+        metric_results = defaultdict(list)  # type: Dict[str, List[float]]
+        cur_metric = standard_metrics[metric]()
+        for i in tqdm(range(0, len(df), batch_size), leave=False, desc=metric):
+            pred, target = test_predictions['prediction'][i:i + batch_size], test_predictions['gt'][i:i + batch_size]
+            result = cur_metric.calc_metric(pred, target)
+            for k, v in result.items():
+                metric_results[k] += v
+        del cur_metric
+        torch.cuda.empty_cache()
+        gc.collect()
+        for k, v in metric_results.items():
+            df.insert(len(df.columns), k, v, False)
+    with mlflow.start_run(run_id=run):
+        mlflow.log_table(df, f"evaluation_{dataset_test._fingerprint}.json")
+        logging.info(f"{run} data logged!")
+
+
+@cli.command()
+@click.argument('test_set', type=click.Path(exists=True, file_okay=True, dir_okay=False),
+                default='src/model_training/datasets/default.py')
+@click.option('-e', '--experiment', 'experiments', type=int, multiple=True, default=[])
+@click.option('-r', '--run', 'selected_runs', type=str, multiple=True, default=[])
+@click.option('-m',
+              '--metrics',
+              type=click.Choice(list(standard_metrics.keys()), case_sensitive=False),
+              default=standard_metrics.keys(),
+              multiple=True)
+@click.option('--batch-size', type=int, default=12)
+@click.option("--seed", type=int, default=42)
+@click.option("--shuffle", type=bool, default=True)
+@click.option("--subset-test", type=float, default=-1)
+@click.option('--debug', type=bool, default=False)
+def batch_evaluate(test_set, experiments, selected_runs, metrics, batch_size, seed, shuffle, subset_test, debug):
+    from src.mlflow_utils import get_run_list
+
+    if debug:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
+
     selected_runs += tuple(get_run_list(experiments))
     selected_runs = tuple(set(selected_runs))
 
     logging.info("selected runs: %s", selected_runs)
     logging.info("selected metrics: %s", metrics)
 
-    for run in selected_runs:
-        run_data = mlflow.get_run(run)
-        if "1_model_is_adapter" not in run_data.data.params:
-            raise ValueError("Missing adapter information")
-        if "1_model_model_name" not in run_data.data.params:
-            raise ValueError("Missing model name information")
-        if "0_dataset_prompt_pattern" not in run_data.data.params:
-            raise ValueError("Missing dataset prompt pattern information")
-        if "1_model_tokenizer_legacy" not in run_data.data.params:
-            raise ValueError("Missing tokenizer legacy information")
-
-        model_name = run_data.data.params["1_model_model_name"]
-        model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-
-        tokenizer = AutoTokenizer.from_pretrained(model_name, legacy=run_data.data.params["1_model_tokenizer_legacy"])
-        dataset_module = import_module_from_path(test_set)
-
-        dataset_module.DefaultTestSet.prompt_pattern = run_data.data.params["0_dataset_prompt_pattern"]
-
-        if dataset_module.DefinitionDataset.extra_tokens:
-            tokenizer.add_tokens(dataset_module.DefinitionDataset.extra_tokens)
-        if dataset_module.DefinitionDataset.extra_special_tokens:
-            tokenizer.add_tokens(dataset_module.DefinitionDataset.extra_special_tokens)
-        model.resize_token_embeddings(len(tokenizer))
-
-        if run_data.data.params["1_model_is_adapter"] == "True":
-            import adapters
-
-            if "1_model_adapter_name" not in run_data.data.params:
-                raise ValueError("Missing model name information")
-            adapter_name = run_data.data.params["1_model_adapter_name"]
-            adapters.init(model)
-
-            # adapter needs to be reinstated
-            with tempfile.TemporaryDirectory() as temp_path:
-                adapter_path = download_run_artifact(run, "adapter_data", temp_path)
-                model.load_adapter(adapter_path)
-            model.set_active_adapters(adapter_name)
-            logging.info("Adapter '%s' loaded." % adapter_name)
-        elif run_data.data.params["1_model_is_adapter"] == "False":
-            # model needs to be reinstated
-            with tempfile.TemporaryDirectory() as temp_path:
-                weight_path = download_run_artifact(run, "model_data", temp_path)
-                model.from_pretrained(weight_path)
-            logging.info("Fine-tuned Model loaded.")
-        else:
-            raise ValueError("Invalid adapter information")
-
-        model.eval()
-        model.to(device)
-
-        dataset_test = dataset_module.DefaultTestSet.create_dataset(tokenizer, shuffle=shuffle, seed=seed,
-                                                                    subset_test=subset_test)
-        logging.info(f"{len(dataset_test)} test examples loaded.")
-        pipe = pipeline('text2text-generation', model=model, tokenizer=tokenizer, device=device)
-
-        test_predictions = {
-            'title': dataset_test['title'],
-            'context_sentence': dataset_test['context_sentence'],
-            'context_word': dataset_test['context_word'],
-            'gt': dataset_test['gt'],
-            'prediction': []
-        }
-
-        def data_generator():
-            for item in dataset_test:
-                yield item["debug_text"]
-
-        from tqdm.auto import tqdm
-        for out in tqdm(pipe(data_generator(), batch_size=batch_size, max_length=50, num_beams=5, early_stopping=True), total=len(dataset_test), desc="Inferencing"):
-            assert len(out) == 1
-            test_predictions['prediction'].append(out[0]["generated_text"])
-
-        df = pandas.DataFrame.from_dict(test_predictions)
-
-        del pipe, model, tokenizer
-        torch.cuda.empty_cache()
-
-        for metric in tqdm(metrics, desc="Evaluating"):
-            metric_results = defaultdict(list)  # type: Dict[str, List[float]]
-            cur_metric = standard_metrics[metric]()
-            for i in tqdm(range(0, len(df), batch_size), leave=False, desc=metric):
-                pred, target = test_predictions['prediction'][i:i+batch_size], test_predictions['gt'][i:i+batch_size]
-                result = cur_metric.calc_metric(pred, target)
-                for k, v in result.items():
-                    metric_results[k] += v
-            del cur_metric
-            torch.cuda.empty_cache()
-            gc.collect()
-            for k, v in metric_results.items():
-                df.insert(len(df.columns), k, v, False)
-        with mlflow.start_run(run_id=run):
-            mlflow.log_table(df, f"evaluation_{dataset_test._fingerprint}.json")
-            logging.info(f"{run} data logged!")
+    metrics_args = list(sum([("-m", m) for m in metrics], ()))
+    with Progress() as progress:
+        task = progress.add_task("Evaluating", total=len(selected_runs))
+        for run in selected_runs:
+            progress.update(task, description=f"Evaluating {run}", advance=0)
+            subprocess.run(["python3", "evaluation.py", 'evaluate', str(run), str(test_set), *metrics_args, '--batch-size',
+                            str(batch_size), '--seed', str(seed), '--shuffle', str(shuffle), '--subset-test',
+                            str(subset_test), '--debug', str(debug)])
+            progress.update(task, advance=1)
 
 
 def debug_metrics():
@@ -312,4 +355,4 @@ def debug_metrics():
 
 
 if __name__ == '__main__':
-    evaluate()
+    cli()

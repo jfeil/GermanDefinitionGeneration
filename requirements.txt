@@ -33,3 +33,4 @@ pyemd~=1.0.0
 termcolor~=2.4.0
 matplotlib~=3.8.4
 pandasgui~=0.2.13
+rich~=13.7.0

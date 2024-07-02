@@ -1,9 +1,16 @@
 import os
+import subprocess
 
 import click
+from rich.progress import Progress
 
 
-@click.command()
+@click.group()
+def cli():
+    pass
+
+
+@cli.command()
 @click.argument('model_path', type=click.Path(exists=True, file_okay=True, dir_okay=False),
                 default='src/model_training/training/experiment_adapter.py')
 @click.argument('dataset_path', type=click.Path(exists=True, file_okay=True, dir_okay=False),
@@ -144,5 +151,118 @@ def train(model_path, dataset_path, checkpoint_dir, model_output_dir, adapter_ou
                 shutil.rmtree(f)
 
 
+def call_external_training(model_path, dataset_path, checkpoint_dir, model_output_dir, adapter_output_dir, seed,
+                           shuffle, experiment_id, subset_train, subset_val, train_batch_size, eval_batch_size,
+                           epochs, eval_steps, init_lr, early_stop, early_stop_steps, weight_decay, bf16, fp16,
+                           keep_checkpoints):
+    args = ['python3', "training.py", model_path, dataset_path, '--checkpoint-dir', checkpoint_dir,
+            '--model-output-dir', model_output_dir,
+            '--adapter-output-dir', adapter_output_dir,
+            '--seed', str(seed),
+            '--shuffle', str(shuffle),
+            '--experiment-id', str(experiment_id),
+            '--subset-train', str(subset_train),
+            '--subset-val', str(subset_val),
+            '--train-batch-size', str(train_batch_size),
+            '--eval-batch-size', str(eval_batch_size),
+            '--epochs', str(epochs),
+            '--eval-steps', str(eval_steps),
+            '--init-lr', str(init_lr),
+            '--early-stop', str(early_stop),
+            '--early-stop-steps', str(early_stop_steps),
+            '--weight-decay', str(weight_decay),
+            '--bf16', str(bf16),
+            '--fp16', str(fp16),
+            '--keep-checkpoints', str(keep_checkpoints)
+            ]
+
+    subprocess.run(args)
+
+
+@cli.command()
+@click.argument('model_path', type=click.Path(exists=True, file_okay=True, dir_okay=False),
+                nargs=-1)
+@click.argument('dataset_path', type=click.Path(exists=True, file_okay=True, dir_okay=False),
+                nargs=1)
+@click.option('--checkpoint-dir', type=click.Path(file_okay=False, dir_okay=True, writable=True),
+              default='output/checkpoint')
+@click.option('--model-output-dir', type=click.Path(file_okay=False, dir_okay=True, writable=True),
+              default='output/model')
+@click.option('--adapter-output-dir', type=click.Path(file_okay=False, dir_okay=True, writable=True),
+              default='output/adapter')
+@click.option("--seed", type=int, default=42)
+@click.option("--shuffle", type=bool, default=True)
+@click.option('--experiment-id', type=int, default=3)
+@click.option("--subset-train", type=float, default=-1)
+@click.option("--subset-val", type=float, default=-1)
+@click.option("--train-batch-size", type=int, default=12)
+@click.option("--eval-batch-size", type=int, default=12)
+@click.option("--epochs", type=int, default=30)
+@click.option("--eval-steps", type=int, default=500)
+@click.option("--init-lr", type=float, default=1e-4)
+@click.option("--early-stop", type=bool, default=True)
+@click.option("--early-stop-steps", type=int, default=10)
+@click.option("--weight-decay", type=float, default=0.01)
+@click.option("--bf16", type=bool, default=True)
+@click.option("--fp16", type=bool, default=False)
+@click.option("--keep-checkpoints", type=bool, default=False)
+def train_models(model_path, dataset_path, checkpoint_dir, model_output_dir, adapter_output_dir, seed, shuffle,
+                 experiment_id,
+                 subset_train, subset_val, train_batch_size, eval_batch_size,
+                 epochs, eval_steps, init_lr, early_stop, early_stop_steps, weight_decay, bf16, fp16, keep_checkpoints):
+    with Progress() as progress:
+        task = progress.add_task("Training", total=len(model_path))
+        for model in model_path:
+            progress.update(task, description=f"Training model {model}", advance=0)
+            call_external_training(model, dataset_path, checkpoint_dir, model_output_dir, adapter_output_dir, seed,
+                                   shuffle, experiment_id, subset_train, subset_val, train_batch_size, eval_batch_size,
+                                   epochs, eval_steps, init_lr, early_stop, early_stop_steps, weight_decay, bf16, fp16,
+                                   keep_checkpoints)
+            progress.update(task, advance=1)
+
+
+@cli.command()
+@click.argument('model_path', type=click.Path(exists=True, file_okay=True, dir_okay=False),
+                nargs=1)
+@click.argument('dataset_path', type=click.Path(exists=True, file_okay=True, dir_okay=False),
+                nargs=-1)
+@click.option('--checkpoint-dir', type=click.Path(file_okay=False, dir_okay=True, writable=True),
+              default='output/checkpoint')
+@click.option('--model-output-dir', type=click.Path(file_okay=False, dir_okay=True, writable=True),
+              default='output/model')
+@click.option('--adapter-output-dir', type=click.Path(file_okay=False, dir_okay=True, writable=True),
+              default='output/adapter')
+@click.option("--seed", type=int, default=42)
+@click.option("--shuffle", type=bool, default=True)
+@click.option('--experiment-id', type=int, default=3)
+@click.option("--subset-train", type=float, default=-1)
+@click.option("--subset-val", type=float, default=-1)
+@click.option("--train-batch-size", type=int, default=12)
+@click.option("--eval-batch-size", type=int, default=12)
+@click.option("--epochs", type=int, default=30)
+@click.option("--eval-steps", type=int, default=500)
+@click.option("--init-lr", type=float, default=1e-4)
+@click.option("--early-stop", type=bool, default=True)
+@click.option("--early-stop-steps", type=int, default=10)
+@click.option("--weight-decay", type=float, default=0.01)
+@click.option("--bf16", type=bool, default=True)
+@click.option("--fp16", type=bool, default=False)
+@click.option("--keep-checkpoints", type=bool, default=False)
+def train_datasets(model_path, dataset_path, checkpoint_dir, model_output_dir, adapter_output_dir, seed, shuffle,
+                   experiment_id,
+                   subset_train, subset_val, train_batch_size, eval_batch_size,
+                   epochs, eval_steps, init_lr, early_stop, early_stop_steps, weight_decay, bf16, fp16,
+                   keep_checkpoints):
+    with Progress() as progress:
+        task = progress.add_task("Training", total=len(model_path))
+        for dataset in dataset_path:
+            progress.update(task, description=f"Training dataset {dataset}", advance=0)
+            call_external_training(model_path, dataset, checkpoint_dir, model_output_dir, adapter_output_dir, seed,
+                                   shuffle, experiment_id, subset_train, subset_val, train_batch_size, eval_batch_size,
+                                   epochs, eval_steps, init_lr, early_stop, early_stop_steps, weight_decay, bf16, fp16,
+                                   keep_checkpoints)
+            progress.update(task, advance=1)
+
+
 if __name__ == '__main__':
-    train()
+    cli()

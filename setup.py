@@ -9,8 +9,8 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'training = training:train',
-            'evaluate = evaluation:evaluate',
+            'training = training:cli',
+            'evaluate = evaluation:cli',
         ],
     },
 )
