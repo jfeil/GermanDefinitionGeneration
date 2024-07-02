@@ -9,6 +9,8 @@ from src.utils import sanitize_context, sanitize_context_word
 
 class DefaultDataset:
     prompt_pattern = f"%s Was ist die Definition von %s? "
+    train_path = "/home/jfeil/MasterThesis/dataset/v1/train.parquet"
+    val_path = "/home/jfeil/MasterThesis/dataset/v1/val.parquet"
     tokenizer = None
     extra_special_tokens = []
     extra_tokens = []
@@ -64,9 +66,9 @@ class DefaultTrainValSet(DefaultDataset):
     def _data_loading(cls, shuffle: bool, seed: int, subset_train: float, subset_val: float) \
             -> Tuple[Dataset, Dataset]:
         # noinspection PyTypeChecker
-        dataset_train = Dataset.from_parquet("/home/jfeil/MasterThesis/dataset/v1/train.parquet", split="train")
+        dataset_train = Dataset.from_parquet(cls.train_path, split="train")
         # noinspection PyTypeChecker
-        dataset_val = Dataset.from_parquet("/home/jfeil/MasterThesis/dataset/v1/val.parquet", split="val")
+        dataset_val = Dataset.from_parquet(cls.val_path, split="val")
 
         if shuffle:
             dataset_train = dataset_train.shuffle(seed=seed).flatten_indices()
