@@ -155,7 +155,7 @@ def call_external_training(model_path, dataset_path, checkpoint_dir, model_outpu
                            shuffle, experiment_id, subset_train, subset_val, train_batch_size, eval_batch_size,
                            epochs, eval_steps, init_lr, early_stop, early_stop_steps, weight_decay, bf16, fp16,
                            keep_checkpoints):
-    args = ['python3', "training.py", model_path, dataset_path, '--checkpoint-dir', checkpoint_dir,
+    args = ["training", "train", model_path, dataset_path, '--checkpoint-dir', checkpoint_dir,
             '--model-output-dir', model_output_dir,
             '--adapter-output-dir', adapter_output_dir,
             '--seed', str(seed),
@@ -254,7 +254,7 @@ def train_datasets(model_path, dataset_path, checkpoint_dir, model_output_dir, a
                    epochs, eval_steps, init_lr, early_stop, early_stop_steps, weight_decay, bf16, fp16,
                    keep_checkpoints):
     with Progress() as progress:
-        task = progress.add_task("Training", total=len(model_path))
+        task = progress.add_task("Training", total=len(dataset_path))
         for dataset in dataset_path:
             progress.update(task, description=f"Training dataset {dataset}", advance=0)
             call_external_training(model_path, dataset, checkpoint_dir, model_output_dir, adapter_output_dir, seed,
