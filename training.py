@@ -108,6 +108,7 @@ def train(model_path, dataset_path, checkpoint_dir, model_output_dir, adapter_ou
             load_best_model_at_end=True,
             metric_for_best_model="loss",
             seed=seed,
+            save_total_limit=5
         )
 
         if is_adapter:
@@ -130,7 +131,7 @@ def train(model_path, dataset_path, checkpoint_dir, model_output_dir, adapter_ou
                 # compute_metrics=compute_accuracy,
                 data_collator=data_collator,
                 tokenizer=tokenizer,
-                callbacks=callbacks
+                callbacks=callbacks,
             )
 
         trainer.train()
