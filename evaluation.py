@@ -173,7 +173,7 @@ def cli():
 @cli.command()
 @click.argument('run', type=str)
 @click.argument('test_set', type=click.Path(exists=True, file_okay=True, dir_okay=False),
-                default='src/model_training/datasets/default.py')
+                default='src/model_training/datasets/default_de.py')
 @click.option('-m',
               '--metrics',
               type=click.Choice(list(standard_metrics.keys()), case_sensitive=False),
@@ -213,7 +213,7 @@ def evaluate(run, test_set, metrics, batch_size, seed, shuffle, subset_test, deb
     tokenizer = AutoTokenizer.from_pretrained(model_name, legacy=run_data.data.params["1_model_tokenizer_legacy"])
     dataset_module = import_module_from_path(test_set)
 
-    dataset_module.DefaultTestSet.prompt_pattern = run_data.data.params["0_dataset_prompt_pattern"]
+    dataset_module.DefinitionTestSet.prompt_pattern = run_data.data.params["0_dataset_prompt_pattern"]
 
     if run_data.data.params['0_dataset_extra_tokens']:
         tokenizer.add_tokens(eval(run_data.data.params['0_dataset_extra_tokens']))

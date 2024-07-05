@@ -91,10 +91,12 @@ class DefaultTrainValSet(DefaultDataset):
 
 
 class DefaultTestSet(DefaultDataset):
+    test_path = "/home/jfeil/MasterThesis/dataset/v1/test.parquet"
+
     @classmethod
     def _data_loading(cls, shuffle: bool, seed: int, subset_test: float) -> Dataset:
         # noinspection PyTypeChecker
-        dataset_test = Dataset.from_parquet("/home/jfeil/MasterThesis/dataset/v1/test.parquet", split="test")
+        dataset_test = Dataset.from_parquet(cls.test_path, split="test")
 
         if shuffle:
             dataset_test = dataset_test.shuffle(seed=seed).flatten_indices()
@@ -111,6 +113,13 @@ class DefaultTestSet(DefaultDataset):
         dataset_test = cls._data_loading(shuffle, seed, subset_test)
 
         return cls._prepare_data(dataset_test)
+
+
+class DefinitionTestSet(DefaultTestSet):
+    """
+    Overwrite me :)
+"""
+    pass
 
 
 class DefinitionDataset(DefaultTrainValSet):

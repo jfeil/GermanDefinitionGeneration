@@ -2,6 +2,8 @@ from collections import defaultdict
 import re
 import pymongo
 from pymongo import UpdateOne
+from pymongo.collection import Collection
+
 from src.utils import sanitize_context
 
 # Connect to MongoDB
@@ -13,39 +15,40 @@ collection_name = "articles_2"
 client = pymongo.MongoClient(mongodb_uri, username='root', password='example')
 db = client[database_name]
 collection = db[collection_name]
+collection_de = db["articles_de"]
 
 
-def set_datasplit(dataset, split):
+def set_datasplit(col: Collection, dataset, split):
     updates = []
     for d in dataset:
         updates.append(UpdateOne({'_id': d['_id']}, {"$set": {"split": split}}))
-    collection.bulk_write(updates)
+    col.bulk_write(updates)
 
 
-def unset_datasplit(dataset):
+def unset_datasplit(col: Collection, dataset):
     updates = []
     for d in dataset:
         updates.append(UpdateOne({'_id': d['_id']}, {"$unset": {"split": 1}}))
-    collection.bulk_write(updates)
+    col.bulk_write(updates)
 
 
-def get_database_entry(title: str):
+def get_database_entry(col: Collection, title: str):
     query = query = {"$and": [{"beispiele": {"$exists": True}}, {"bedeutungen": {"$exists": True}}, {"title": title}]}
 
     # Retrieving documents that match the query
-    return collection.find(query)[0]
+    return col.find(query)[0]
 
 
-def get_all_entries(split=None, limit=0):
+def get_all_entries(col: Collection, split=None, limit=0):
     query = {"$and": [{"beispiele": {"$exists": True}}, {"bedeutungen": {"$exists": True}}]}
     if split is not None:
         query["$and"] += [{"split": split}]
     # Retrieving documents that match the query
-    return collection.find(query, limit=limit)
+    return col.find(query, limit=limit)
 
 
-def get_text(title: str):
-    return get_database_entry(title)['text']
+def get_text(col: Collection, title: str):
+    return get_database_entry(col, title)['text']
 
 
 def extract_sentence(text):
@@ -58,7 +61,7 @@ def extract_sentence(text):
     return int(mat2[0]), text[mat.span()[1]+1:]
 
 
-def extract_content(content):
+def extract_content(content, filter_lan=None):
 
     bedeutungen = defaultdict(lambda: defaultdict(lambda: []))
     beispiele = defaultdict(lambda: defaultdict(lambda: []))
@@ -67,8 +70,17 @@ def extract_content(content):
     searching_bed = False
     searching_exa = False
     cache = ""
+    searching_disabled = filter_lan is None
 
     for line in content.split("\n"):
+        if filter_lan is not None:
+            if word := re.search(r"\{\{Sprache\|([^}]+)}}", line):
+                if word.group(1) != filter_lan:
+                    searching_disabled = True
+                else:
+                    searching_disabled = False
+        if searching_disabled:
+            continue
         if str(line).startswith('::'):
             line = line.lstrip("::")
         if line.startswith("== ") or line.startswith("=== "):
@@ -226,12 +238,14 @@ def extract_entries(entries):
     return bedeutungen
 
 
-def clear_database():
-    collection.update_many(
+def clear_database(col: Collection):
+    col.update_many(
         {},
         {"$unset": {"bedeutungen": "", "beispiele": ""}}
     )
 
 
 if __name__ == '__main__':
-    print(create_set(get_database_entry("Baby")))
+    search_query = {'title': 'Matrix'}
+    result = collection_de.find(search_query)
+    print(extract_content(list(result)[0]['text'], 'Deutsch'))
