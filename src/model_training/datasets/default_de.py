@@ -1,5 +1,3 @@
-from datasets import Dataset
-
 from src.model_training.datasets.default import DefaultTestSet, DefaultTrainValSet
 
 
