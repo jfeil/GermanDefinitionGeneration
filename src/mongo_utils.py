@@ -171,7 +171,7 @@ def create_set(data, replace_none=False):
             if example == '{{Beispiele fehlen}}':
                 continue
             in_sentence_keyword = re.findall(r"''(.*?)''", "".join(example))
-            in_sentence_keyword = [sanitize_context(i) for i in in_sentence_keyword]
+            in_sentence_keyword = [i for i in in_sentence_keyword]
             a = []
             for x in in_sentence_keyword:
                 if not re.match(r"\[\[(.*?)]]", x):
@@ -179,7 +179,7 @@ def create_set(data, replace_none=False):
             in_sentence_keyword = a
 
             if len(in_sentence_keyword) >= 1:
-                in_sentence_keyword = sanitize_context(in_sentence_keyword[0]).strip()
+                in_sentence_keyword = in_sentence_keyword[0].strip()
             else:
                 if replace_none:
                     in_sentence_keyword = key_word
@@ -192,8 +192,7 @@ def create_set(data, replace_none=False):
                 else:
                     in_sentence_keyword = None
             text = "".join(example)
-            text = re.sub(r'<ref>.*?</ref>', '', text)
-            gt = filter_bedeutung(data["bedeutungen"][key][0])
+            gt = data["bedeutungen"][key][0]
             if gt != "":
                 return_data += [(
                     key_word, in_sentence_keyword, text, gt

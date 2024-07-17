@@ -28,6 +28,7 @@ class DefaultDataset:
 
     @staticmethod
     def _sanitize_spaces(input_text: str) -> str:
+        input_text = input_text.replace("&nbsp;", " ")
         return re.sub(r'\s+', ' ', re.sub(r'\n+', ' ', input_text.strip()))
 
     @classmethod
@@ -37,28 +38,37 @@ class DefaultDataset:
         input_text = sanitize_context(input_text)
         return input_text
 
+    @classmethod
+    def _sanitize_gt(cls, input_text: str) -> str:
+        return cls._sanitize_context(input_text)
+
     @staticmethod
     def _sanitize_word(input_text: str) -> str:
         return sanitize_context_word(input_text)
 
     @classmethod
     def _preprocessing(cls, examples):
-        input_texts = [prompt_pattern(cls._sanitize_context(context), cls._sanitize_word(word),
-                                      pattern=cls.prompt_pattern) for
-                       context, word in zip(examples["context_sentence"], examples["context_word"])]
+        context_word = [cls._sanitize_word(w) for w in examples['context_word']]
+        title = [cls._sanitize_word(w) for w in examples['title']]
+        context_sentence = [cls._sanitize_context(w) for w in examples['context_sentence']]
+        gt = [cls._sanitize_gt(w) for w in examples['gt']]
+        input_texts = [prompt_pattern(c, w, pattern=cls.prompt_pattern) for c, w in zip(context_sentence, context_word)]
         inputs = cls.tokenizer(input_texts, max_length=512, truncation=True)
-        inputs["labels"] = cls.tokenizer(text_target=[cls._sanitize_context(doc) for doc in examples["gt"]], max_length=128, truncation=True)["input_ids"]
-        inputs["debug_text"] = input_texts
-        inputs["debug_gt"] = [cls._sanitize_context(doc) for doc in examples["gt"]]
+        inputs["labels"] = cls.tokenizer(text_target=gt, max_length=128, truncation=True)["input_ids"]
+        inputs["prompt"] = input_texts  # cls.tokenizer.batch_decode(inputs["input_ids"])
+        inputs["title"] = title
+        inputs["context_word"] = context_word
+        inputs["context_sentence"] = context_sentence
+        inputs["gt"] = gt  # cls.tokenizer.batch_decode(inputs["labels"])
 
         return inputs
 
     @classmethod
-    def _prepare_data(cls, dataset: Dataset) -> Dataset:
+    def _prepare_data(cls, dataset: Dataset, cache=True) -> Dataset:
         if cls.tokenizer is None:
             raise ValueError("Tokenizer must be set before preprocessing.")
 
-        return dataset.map(cls._preprocessing, batched=True)
+        return dataset.map(cls._preprocessing, batched=True, load_from_cache_file=cache)
 
 
 class DefaultTrainValSet(DefaultDataset):
