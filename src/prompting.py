@@ -90,6 +90,23 @@ example_prompts = [
 ]
 
 default_experiments = [
+    # Limit to 10 words, 1 example, different prompt
+    Experiment(system_prompt=[
+        "Du bist ein Definitionsgenerator. "
+        "Du antwortest in Deutsch. "
+        "Du bekommst einen Beispielsatz und ein Wort aus dem Satz. "
+        "Du antwortest mit der Definition des Wortes im Kontext des Beispiels. "
+        "Du antwortest nur mit der Definition. "
+        "Du zeigst den Bezug auf den Kontext. "
+        "Du antwortest in maximal 10 Worten. "
+    ],
+        question_prompt="%s: Was ist in diesem Kontext die Definition von %s?",
+        example_prompts=[
+            ("Die Liebe überwindet alle Grenzen",
+             "Liebe",
+             "inniges Gefühl der Zuneigung für jemanden oder für etwas"),
+        ]),
+
     # Limit to 5 words, 2 examples
     Experiment(system_prompt=[
         "Du bist ein Definitionsgenerator. "
@@ -170,7 +187,7 @@ default_experiments = [
         "Du antwortest mit der Definition des Wortes im Kontext des Beispiels. "
         "Du antwortest nur mit der Definition. "
         "Du zeigst den Bezug auf den Kontext. "
-        "Du antwortest in maximal 1ß Worten. "
+        "Du antwortest in maximal 10 Worten. "
     ],
         question_prompt="\"%s\": Was ist in diesem Kontext die Definition von %s? ",
         example_prompts=[
