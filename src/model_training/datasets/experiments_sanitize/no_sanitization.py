@@ -1,9 +1,9 @@
-from src.model_training.datasets.default import DefaultTrainValSet
+from src.model_training.datasets.default import DefaultTrainValSet as TemplateTrain
 
 
-class DefinitionDataset(DefaultTrainValSet):
-    train_path = "/home/jfeil/MasterThesis/dataset/v3/train.parquet"
-    val_path = "/home/jfeil/MasterThesis/dataset/v3/val.parquet"
+class DefinitionDataset(TemplateTrain):
+    train_path = "/home/jfeil/MasterThesis/dataset/v5/train.parquet"
+    val_path = "/home/jfeil/MasterThesis/dataset/v5/val.parquet"
 
     @classmethod
     def _sanitize_context(cls, input_text: str) -> str:

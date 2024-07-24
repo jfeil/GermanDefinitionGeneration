@@ -1,11 +1,12 @@
-from src.model_training.datasets.default import DefaultTestSet, DefaultTrainValSet
+from src.model_training.datasets.default import DefaultTrainValSet as TemplateTrain
+from src.model_training.datasets.default import DefaultTestSet as TemplateTest
 
 
-class DefinitionTestSet(DefaultTestSet):
+class DefinitionTestSet(TemplateTest):
     test_path = "/home/jfeil/MasterThesis/dataset/v2/test.parquet"
 
 
-class DefinitionDataset(DefaultTrainValSet):
+class DefinitionDataset(TemplateTrain):
     """
     Overwrite me :)
 """

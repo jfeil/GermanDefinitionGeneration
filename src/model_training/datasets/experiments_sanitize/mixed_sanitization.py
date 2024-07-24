@@ -1,7 +1,8 @@
 import regex as re
 from datasets import Dataset
 
-from src.model_training.datasets.default import DefaultTrainValSet, DefaultTestSet
+from src.model_training.datasets.default import DefaultTrainValSet as TemplateTrain
+from src.model_training.datasets.default import DefaultTestSet as TemplateTest
 
 
 def global_sanitize(input_text):
@@ -272,10 +273,10 @@ def global_sanitize(input_text):
             .replace("()", "").replace("ͤ", ""))
 
 
-class DefinitionDataset(DefaultTrainValSet):
-    train_path = "/home/jfeil/MasterThesis/dataset/v4/train.parquet"
+class DefinitionDataset(TemplateTrain):
+    train_path = "/home/jfeil/MasterThesis/dataset/v5/train.parquet"
 
-    val_path = "/home/jfeil/MasterThesis/dataset/v4/val.parquet"
+    val_path = "/home/jfeil/MasterThesis/dataset/v5/val.parquet"
 
     @classmethod
     def _sanitize_context(cls, input_text: str) -> str:
@@ -365,8 +366,8 @@ class DefinitionDataset(DefaultTrainValSet):
         return inputs
 
 
-class DefinitionTestSet(DefaultTestSet):
-    test_path = "/home/jfeil/MasterThesis/dataset/v4/test.parquet"
+class DefinitionTestSet(TemplateTest):
+    test_path = "/home/jfeil/MasterThesis/dataset/v5/test.parquet"
 
     @classmethod
     def _sanitize_context(cls, input_text: str) -> str:

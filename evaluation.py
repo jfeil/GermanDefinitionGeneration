@@ -238,9 +238,10 @@ def load_model(run, device):
 @click.option("--seed", type=int, default=42)
 @click.option("--shuffle", type=bool, default=True)
 @click.option("--subset-test", type=float, default=-1)
+@click.option("--use-train", type=bool, default=False)
 @click.option("--output", type=click.Path(exists=False, file_okay=True, dir_okay=False), default=None)
 @click.option('--debug', type=bool, default=False)
-def evaluate(run, test_set, metrics, batch_size, seed, shuffle, subset_test, output, debug):
+def evaluate(run, test_set, metrics, batch_size, seed, shuffle, subset_test, use_train, output, debug):
     import torch
     from transformers import pipeline
     from src.utils import import_module_from_path
@@ -254,7 +255,6 @@ def evaluate(run, test_set, metrics, batch_size, seed, shuffle, subset_test, out
         logging.basicConfig(level=logging.INFO)
 
     model, tokenizer, prompt_pattern = load_model(run, device)
-    use_train = True
     if use_train:
         dataset_module = import_module_from_path(test_set)
 

@@ -1,3 +1,4 @@
+import logging
 import re
 from typing import Tuple
 
@@ -47,11 +48,17 @@ class DefaultDataset:
         return sanitize_context_word(input_text)
 
     @classmethod
-    def _preprocessing(cls, examples):
+    def _cleanup(cls, examples):
         context_word = [cls._sanitize_word(w) for w in examples['context_word']]
         title = [cls._sanitize_word(w) for w in examples['title']]
         context_sentence = [cls._sanitize_context(w) for w in examples['context_sentence']]
         gt = [cls._sanitize_gt(w) for w in examples['gt']]
+
+        return context_word, title, context_sentence, gt
+
+    @classmethod
+    def _preprocessing(cls, examples):
+        context_word, title, context_sentence, gt = cls._cleanup(examples)
         input_texts = [prompt_pattern(c, w, pattern=cls.prompt_pattern) for c, w in zip(context_sentence, context_word)]
         inputs = cls.tokenizer(input_texts, max_length=512, truncation=True)
         inputs["labels"] = cls.tokenizer(text_target=gt, max_length=128, truncation=True)["input_ids"]
@@ -64,9 +71,17 @@ class DefaultDataset:
         return inputs
 
     @classmethod
+    def _no_tokenizer_preprocessing(cls, examples):
+        context_word, title, context_sentence, gt = cls._cleanup(examples)
+        input_texts = [prompt_pattern(c, w, pattern=cls.prompt_pattern) for c, w in zip(context_sentence, context_word)]
+        return {"prompt": input_texts, "title": title, "context_word": context_word,
+                "context_sentence": context_sentence, "gt": gt}
+
+    @classmethod
     def _prepare_data(cls, dataset: Dataset, cache=True) -> Dataset:
         if cls.tokenizer is None:
-            raise ValueError("Tokenizer must be set before preprocessing.")
+            logging.warning("Tokenizer not available, using no tokenizer")
+            return dataset.map(cls._no_tokenizer_preprocessing, batched=True, load_from_cache_file=cache)
 
         return dataset.map(cls._preprocessing, batched=True, load_from_cache_file=cache)
 
