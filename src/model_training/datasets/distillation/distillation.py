@@ -1,5 +1,5 @@
-from src.model_training.datasets.experiments_sanitize.complete_sanitization import DefinitionDataset as TemplateTrain
-from src.model_training.datasets.experiments_sanitize.complete_sanitization import DefinitionTestSet as TemplateTest
+from src.model_training.datasets.default import DefinitionDataset as TemplateTrain
+from src.model_training.datasets.default import DefinitionTestSet as TemplateTest
 
 
 class DefinitionDataset(TemplateTrain):

@@ -10,7 +10,7 @@ class DefaultModel:
 
 
 class DefaultAdapterModel(DefaultModel):
-    adapter_config = "mam"
+    adapter_config = "double_seq_bn"
     adapter_name = "definition_base"
     is_adapter = True
 
