@@ -1,0 +1,46 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.7.5 Chrome/126.0.6478.183 Electron/31.3.0 Safari/537.36" version="24.7.5">
+  <diagram name="Page-1" id="3eOojrGp__ckUV1njf_D">
+    <mxGraphModel dx="1145" dy="687" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="rpQyXkPUO88MOEFnsraQ-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="iDWvpvEgz3uL1hRApH5j-1" target="iDWvpvEgz3uL1hRApH5j-3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rpQyXkPUO88MOEFnsraQ-13" value="Extracting&lt;div&gt;Bedeutungen and&lt;/div&gt;&lt;div&gt;Beispiele&lt;/div&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="rpQyXkPUO88MOEFnsraQ-12">
+          <mxGeometry x="-0.0879" y="-1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="iDWvpvEgz3uL1hRApH5j-1" value="Wiktionary&lt;div&gt;RDF export&lt;/div&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;" parent="1" vertex="1">
+          <mxGeometry x="80" y="160" width="70" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="rpQyXkPUO88MOEFnsraQ-14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="iDWvpvEgz3uL1hRApH5j-3" target="iDWvpvEgz3uL1hRApH5j-11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rpQyXkPUO88MOEFnsraQ-15" value="Extracting&lt;div&gt;Context Word&lt;/div&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="rpQyXkPUO88MOEFnsraQ-14">
+          <mxGeometry x="0.0176" y="1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="iDWvpvEgz3uL1hRApH5j-3" value="Local&lt;div&gt;Database&lt;/div&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;" parent="1" vertex="1">
+          <mxGeometry x="280" y="160" width="70" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="iDWvpvEgz3uL1hRApH5j-9" value="Train Set" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;" parent="1" vertex="1">
+          <mxGeometry x="640" y="160" width="70" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="rpQyXkPUO88MOEFnsraQ-16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="iDWvpvEgz3uL1hRApH5j-11" target="iDWvpvEgz3uL1hRApH5j-9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rpQyXkPUO88MOEFnsraQ-17" value="Sanitizing&lt;div&gt;data points&lt;/div&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="rpQyXkPUO88MOEFnsraQ-16">
+          <mxGeometry x="0.0615" y="1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="iDWvpvEgz3uL1hRApH5j-11" value="" style="shape=ext;double=1;rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="480" y="190" width="30" height="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

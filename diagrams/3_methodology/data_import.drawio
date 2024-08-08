@@ -1,0 +1,55 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.7.5 Chrome/126.0.6478.183 Electron/31.3.0 Safari/537.36" version="24.7.5">
+  <diagram name="Page-1" id="3eOojrGp__ckUV1njf_D">
+    <mxGraphModel dx="668" dy="401" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="iDWvpvEgz3uL1hRApH5j-1" value="Wiktionary&lt;div&gt;RDF export&lt;/div&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;" parent="1" vertex="1">
+          <mxGeometry x="80" y="160" width="70" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="iDWvpvEgz3uL1hRApH5j-3" value="Local&lt;div&gt;Database&lt;/div&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;" parent="1" vertex="1">
+          <mxGeometry x="280" y="160" width="70" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="iDWvpvEgz3uL1hRApH5j-4" value="" style="shape=flexArrow;endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" source="iDWvpvEgz3uL1hRApH5j-1" target="iDWvpvEgz3uL1hRApH5j-3" edge="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="400" y="550" as="sourcePoint" />
+            <mxPoint x="450" y="500" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="iDWvpvEgz3uL1hRApH5j-5" value="Extracting&lt;div&gt;Bedeutungen and&lt;/div&gt;&lt;div&gt;Beispiele&lt;/div&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="iDWvpvEgz3uL1hRApH5j-4" vertex="1" connectable="0">
+          <mxGeometry y="-2" relative="1" as="geometry">
+            <mxPoint x="-5" y="-2" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="iDWvpvEgz3uL1hRApH5j-7" value="" style="shape=flexArrow;endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="iDWvpvEgz3uL1hRApH5j-3" target="iDWvpvEgz3uL1hRApH5j-11" edge="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="425" y="204.5" as="sourcePoint" />
+            <mxPoint x="510" y="205" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="iDWvpvEgz3uL1hRApH5j-8" value="Extracting&lt;div&gt;Context Word&lt;/div&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="iDWvpvEgz3uL1hRApH5j-7" vertex="1" connectable="0">
+          <mxGeometry y="-2" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="iDWvpvEgz3uL1hRApH5j-9" value="Train Set" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;" parent="1" vertex="1">
+          <mxGeometry x="640" y="160" width="70" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="iDWvpvEgz3uL1hRApH5j-11" value="" style="shape=ext;double=1;rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="480" y="190" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="iDWvpvEgz3uL1hRApH5j-12" value="" style="shape=flexArrow;endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" source="iDWvpvEgz3uL1hRApH5j-11" target="iDWvpvEgz3uL1hRApH5j-9" edge="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="540" y="204.5" as="sourcePoint" />
+            <mxPoint x="670" y="204.5" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="iDWvpvEgz3uL1hRApH5j-13" value="Sanitizing&lt;div&gt;data points&lt;/div&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="iDWvpvEgz3uL1hRApH5j-12" vertex="1" connectable="0">
+          <mxGeometry y="-2" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
