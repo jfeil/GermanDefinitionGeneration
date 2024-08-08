@@ -43,6 +43,7 @@ def evaluate(experiments, selected_runs, debug):
             if artifact_name := re.match(r"evaluation_[0-9a-z]*.json", artifact.path):
                 artifact_name = artifact_name.group(0)
                 dataset_id = artifact_name.replace('evaluation_', '').replace('.json', '')
+                run_name = mlflow.get_run(run).info.run_name
                 evaluation_data = download_run_data(run, artifact_name)
                 if not evaluation_data:
                     raise RuntimeError(f"Could not download evaluation data for run {run}")
@@ -55,7 +56,7 @@ def evaluate(experiments, selected_runs, debug):
                     if column not in collected_data[dataset_id].columns.levels[0]:
                         collected_data[dataset_id][list(itertools.product([column], statistic_fns.keys()))] = np.NaN
 
-                collected_data[dataset_id] = pd.concat([collected_data[dataset_id], pd.DataFrame([new_row], index=[run])])
+                collected_data[dataset_id] = pd.concat([collected_data[dataset_id], pd.DataFrame([new_row], index=[run_name])])
 
     pandasgui.show(**collected_data)
 
