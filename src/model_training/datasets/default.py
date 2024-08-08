@@ -10,8 +10,8 @@ from src.utils import sanitize_context, sanitize_context_word
 
 class DefaultDataset:
     prompt_pattern = f"%s Was ist die Definition von %s? "
-    train_path = "/home/jfeil/MasterThesis/dataset/v1/train.parquet"
-    val_path = "/home/jfeil/MasterThesis/dataset/v1/val.parquet"
+    train_path = "/home/jfeil/MasterThesis/dataset/v5_filtered_shuffled/train.parquet"
+    val_path = "/home/jfeil/MasterThesis/dataset/v5_filtered_shuffled/val.parquet"
     tokenizer = None
     extra_special_tokens = []
     extra_tokens = []
@@ -34,18 +34,15 @@ class DefaultDataset:
 
     @classmethod
     def _sanitize_context(cls, input_text: str) -> str:
-        input_text = input_text.replace("''", "")
-        input_text = cls._sanitize_spaces(input_text)
-        input_text = sanitize_context(input_text)
         return input_text
 
     @classmethod
     def _sanitize_gt(cls, input_text: str) -> str:
-        return cls._sanitize_context(input_text)
+        return input_text
 
     @staticmethod
     def _sanitize_word(input_text: str) -> str:
-        return sanitize_context_word(input_text)
+        return input_text
 
     @classmethod
     def _cleanup(cls, examples):
@@ -67,6 +64,7 @@ class DefaultDataset:
         inputs["context_word"] = context_word
         inputs["context_sentence"] = context_sentence
         inputs["gt"] = gt  # cls.tokenizer.batch_decode(inputs["labels"])
+        inputs["length"] = [len(x)+len(y) for x, y in zip(inputs['input_ids'], inputs["labels"])]
 
         return inputs
 
@@ -108,18 +106,22 @@ class DefaultTrainValSet(DefaultDataset):
 
     @classmethod
     def create_dataset(cls, tokenizer, shuffle: bool, seed: int, subset_train: int | float = -1,
-                       subset_val: int | float = -1) -> Tuple[Dataset, Dataset]:
+                       subset_val: int | float = -1, max_length=250, cache=True) -> Tuple[Dataset, Dataset]:
         cls.tokenizer = tokenizer
         dataset_train, dataset_val = cls._data_loading(shuffle, seed, subset_train, subset_val)
+        dataset_train, dataset_val = cls._prepare_data(dataset_train, cache=cache), cls._prepare_data(dataset_val, cache=cache)
 
-        return cls._prepare_data(dataset_train), cls._prepare_data(dataset_val)
+        if max_length > 0:
+            dataset_train = dataset_train.filter(lambda x: x["length"] <= max_length)
+            dataset_val = dataset_val.filter(lambda x: x["length"] <= max_length)
+        return dataset_train, dataset_val
 
 
 class DefaultTestSet(DefaultDataset):
-    test_path = "/home/jfeil/MasterThesis/dataset/v1/test.parquet"
+    test_path = "/home/jfeil/MasterThesis/dataset/v5_filtered_shuffled/test.parquet"
 
     @classmethod
-    def _data_loading(cls, shuffle: bool, seed: int, subset_test: float) -> Dataset:
+    def _data_loading(cls, shuffle: bool, seed: int, subset_test: float, max_length=250) -> Dataset:
         # noinspection PyTypeChecker
         dataset_test = Dataset.from_parquet(cls.test_path, split="test")
 
@@ -129,15 +131,18 @@ class DefaultTestSet(DefaultDataset):
         if subset_test > 0:
             dataset_test = cls._subset(dataset_test, subset_test)
 
+        if max_length > 0:
+            dataset_test = dataset_test.filter(lambda x: x["length"] <= max_length)
+
         return dataset_test
 
     @classmethod
     def create_dataset(cls, tokenizer, shuffle: bool, seed: int,
-                       subset_test: int | float = -1) -> Dataset:
+                       subset_test: int | float = -1, cache=True) -> Dataset:
         cls.tokenizer = tokenizer
         dataset_test = cls._data_loading(shuffle, seed, subset_test)
 
-        return cls._prepare_data(dataset_test)
+        return cls._prepare_data(dataset_test, cache=cache)
 
 
 class DefinitionTestSet(DefaultTestSet):
