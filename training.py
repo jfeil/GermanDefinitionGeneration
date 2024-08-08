@@ -22,23 +22,24 @@ def cli():
 @click.option('--adapter-output-dir', type=click.Path(file_okay=False, dir_okay=True, writable=True),
               default='output/adapter')
 @click.option("--seed", type=int, default=42)
-@click.option("--shuffle", type=bool, default=True)
+@click.option("--shuffle", type=bool, default=False)
 @click.option('--experiment-id', type=int, default=3)
 @click.option("--subset-train", type=float, default=-1)
 @click.option("--subset-val", type=float, default=-1)
-@click.option("--train-batch-size", type=int, default=12)
-@click.option("--eval-batch-size", type=int, default=12)
+@click.option("--train-batch-size", type=int, default=16)
+@click.option("--gradient-accumulation-steps", type=int, default=16)
+@click.option("--eval-batch-size", type=int, default=24)
 @click.option("--epochs", type=int, default=30)
 @click.option("--eval-steps", type=int, default=500)
 @click.option("--init-lr", type=float, default=1e-4)
 @click.option("--early-stop", type=bool, default=True)
-@click.option("--early-stop-steps", type=int, default=10)
+@click.option("--early-stop-steps", type=int, default=3)
 @click.option("--weight-decay", type=float, default=0.01)
 @click.option("--bf16", type=bool, default=True)
 @click.option("--fp16", type=bool, default=False)
 @click.option("--keep-checkpoints", type=bool, default=False)
 def train(model_path, dataset_path, checkpoint_dir, model_output_dir, adapter_output_dir, seed, shuffle, experiment_id,
-          subset_train, subset_val, train_batch_size, eval_batch_size,
+          subset_train, subset_val, train_batch_size, gradient_accumulation_steps, eval_batch_size,
           epochs, eval_steps, init_lr, early_stop, early_stop_steps, weight_decay, bf16, fp16, keep_checkpoints):
     """
     Train LLMs
@@ -71,7 +72,6 @@ def train(model_path, dataset_path, checkpoint_dir, model_output_dir, adapter_ou
     dataset_train, dataset_val = dataset_module.DefinitionDataset.create_dataset(tokenizer, shuffle=shuffle, seed=seed,
                                                                                  subset_train=subset_train,
                                                                                  subset_val=subset_val)
-
     print(f"{len(dataset_train)} train samples\n{len(dataset_val)} validation samples")
 
     print(f"{model.num_parameters(only_trainable=True)} / {model.num_parameters(only_trainable=False)} "
@@ -82,8 +82,6 @@ def train(model_path, dataset_path, checkpoint_dir, model_output_dir, adapter_ou
         mlflow.log_params(params)
         mlflow.log_param("1_model_trainable_params", model.num_parameters(only_trainable=True))
         mlflow.log_param("1_model_total_params", model.num_parameters(only_trainable=False))
-        mlflow.log_input(mlflow.data.from_huggingface(dataset_train, targets='labels'), context="training")
-        mlflow.log_input(mlflow.data.from_huggingface(dataset_val, targets='labels'), context="validation")
 
         callbacks = [HassioCallback]
         if early_stop:
@@ -93,31 +91,35 @@ def train(model_path, dataset_path, checkpoint_dir, model_output_dir, adapter_ou
 
         training_args = Seq2SeqTrainingArguments(
             learning_rate=init_lr,
-            evaluation_strategy="steps",
+            eval_strategy="steps",
             num_train_epochs=epochs,
             weight_decay=weight_decay,
             per_device_train_batch_size=train_batch_size,
+            gradient_accumulation_steps=gradient_accumulation_steps,
             per_device_eval_batch_size=eval_batch_size,
             logging_steps=10,
             output_dir=checkpoint_dir,
             overwrite_output_dir=True,
             remove_unused_columns=True,
             predict_with_generate=True,
-            eval_accumulation_steps=1,
+            eval_accumulation_steps=gradient_accumulation_steps,
             eval_steps=eval_steps,
             bf16=bf16,
             fp16=fp16,
+            tf32=False,
             load_best_model_at_end=True,
             metric_for_best_model="loss",
             seed=seed,
-            save_total_limit=5
+            save_total_limit=5,
+            dataloader_num_workers=4,
+            # torch_compile=True
         )
 
         if is_adapter:
             trainer = AdapterTrainer(
                 model=model,
                 args=training_args,
-                train_dataset=dataset_train,
+                train_dataset=dataset_train,  # .sort("length", reverse=False),
                 eval_dataset=dataset_val,
                 # compute_metrics=compute_accuracy,
                 data_collator=data_collator,
@@ -128,7 +130,7 @@ def train(model_path, dataset_path, checkpoint_dir, model_output_dir, adapter_ou
             trainer = Seq2SeqTrainer(
                 model=model,
                 args=training_args,
-                train_dataset=dataset_train,
+                train_dataset=dataset_train,  # .sort("length", reverse=True),
                 eval_dataset=dataset_val,
                 # compute_metrics=compute_accuracy,
                 data_collator=data_collator,
@@ -146,6 +148,8 @@ def train(model_path, dataset_path, checkpoint_dir, model_output_dir, adapter_ou
             model_path = os.path.join(model_output_dir, f"model_data")
             model.save_pretrained(model_path)
             mlflow.log_artifact(model_path)
+        mlflow.log_input(mlflow.data.from_huggingface(dataset_train, targets='labels'), context="training")
+        mlflow.log_input(mlflow.data.from_huggingface(dataset_val, targets='labels'), context="validation")
 
         if not keep_checkpoints:
             import glob
@@ -155,7 +159,8 @@ def train(model_path, dataset_path, checkpoint_dir, model_output_dir, adapter_ou
 
 
 def call_external_training(model_path, dataset_path, checkpoint_dir, model_output_dir, adapter_output_dir, seed,
-                           shuffle, experiment_id, subset_train, subset_val, train_batch_size, eval_batch_size,
+                           shuffle, experiment_id, subset_train, subset_val, train_batch_size,
+                           gradient_accumulation_steps, eval_batch_size,
                            epochs, eval_steps, init_lr, early_stop, early_stop_steps, weight_decay, bf16, fp16,
                            keep_checkpoints):
     args = ["training", "train", model_path, dataset_path, '--checkpoint-dir', checkpoint_dir,
@@ -167,6 +172,7 @@ def call_external_training(model_path, dataset_path, checkpoint_dir, model_outpu
             '--subset-train', str(subset_train),
             '--subset-val', str(subset_val),
             '--train-batch-size', str(train_batch_size),
+            "--gradient-accumulation-steps", str(gradient_accumulation_steps),
             '--eval-batch-size', str(eval_batch_size),
             '--epochs', str(epochs),
             '--eval-steps', str(eval_steps),
@@ -194,12 +200,13 @@ def call_external_training(model_path, dataset_path, checkpoint_dir, model_outpu
 @click.option('--adapter-output-dir', type=click.Path(file_okay=False, dir_okay=True, writable=True),
               default='output/adapter')
 @click.option("--seed", type=int, default=42)
-@click.option("--shuffle", type=bool, default=True)
+@click.option("--shuffle", type=bool, default=False)
 @click.option('--experiment-id', type=int, default=3)
 @click.option("--subset-train", type=float, default=-1)
 @click.option("--subset-val", type=float, default=-1)
 @click.option("--train-batch-size", type=int, default=12)
-@click.option("--eval-batch-size", type=int, default=12)
+@click.option("--gradient-accumulation-steps", type=int, default=16)
+@click.option("--eval-batch-size", type=int, default=24)
 @click.option("--epochs", type=int, default=30)
 @click.option("--eval-steps", type=int, default=500)
 @click.option("--init-lr", type=float, default=1e-4)
@@ -211,14 +218,15 @@ def call_external_training(model_path, dataset_path, checkpoint_dir, model_outpu
 @click.option("--keep-checkpoints", type=bool, default=False)
 def train_models(model_path, dataset_path, checkpoint_dir, model_output_dir, adapter_output_dir, seed, shuffle,
                  experiment_id,
-                 subset_train, subset_val, train_batch_size, eval_batch_size,
+                 subset_train, subset_val, train_batch_size, gradient_accumulation_steps, eval_batch_size,
                  epochs, eval_steps, init_lr, early_stop, early_stop_steps, weight_decay, bf16, fp16, keep_checkpoints):
     with Progress() as progress:
         task = progress.add_task("Training", total=len(model_path))
         for model in model_path:
             progress.update(task, description=f"Training model {model}", advance=0)
             call_external_training(model, dataset_path, checkpoint_dir, model_output_dir, adapter_output_dir, seed,
-                                   shuffle, experiment_id, subset_train, subset_val, train_batch_size, eval_batch_size,
+                                   shuffle, experiment_id, subset_train, subset_val, train_batch_size,
+                                   gradient_accumulation_steps, eval_batch_size,
                                    epochs, eval_steps, init_lr, early_stop, early_stop_steps, weight_decay, bf16, fp16,
                                    keep_checkpoints)
             progress.update(task, advance=1)
@@ -236,12 +244,13 @@ def train_models(model_path, dataset_path, checkpoint_dir, model_output_dir, ada
 @click.option('--adapter-output-dir', type=click.Path(file_okay=False, dir_okay=True, writable=True),
               default='output/adapter')
 @click.option("--seed", type=int, default=42)
-@click.option("--shuffle", type=bool, default=True)
+@click.option("--shuffle", type=bool, default=False)
 @click.option('--experiment-id', type=int, default=3)
 @click.option("--subset-train", type=float, default=-1)
 @click.option("--subset-val", type=float, default=-1)
 @click.option("--train-batch-size", type=int, default=12)
-@click.option("--eval-batch-size", type=int, default=12)
+@click.option("--gradient-accumulation-steps", type=int, default=16)
+@click.option("--eval-batch-size", type=int, default=24)
 @click.option("--epochs", type=int, default=30)
 @click.option("--eval-steps", type=int, default=500)
 @click.option("--init-lr", type=float, default=1e-4)
@@ -253,7 +262,7 @@ def train_models(model_path, dataset_path, checkpoint_dir, model_output_dir, ada
 @click.option("--keep-checkpoints", type=bool, default=False)
 def train_datasets(model_path, dataset_path, checkpoint_dir, model_output_dir, adapter_output_dir, seed, shuffle,
                    experiment_id,
-                   subset_train, subset_val, train_batch_size, eval_batch_size,
+                   subset_train, subset_val, train_batch_size, gradient_accumulation_steps, eval_batch_size,
                    epochs, eval_steps, init_lr, early_stop, early_stop_steps, weight_decay, bf16, fp16,
                    keep_checkpoints):
     with Progress() as progress:
@@ -261,7 +270,8 @@ def train_datasets(model_path, dataset_path, checkpoint_dir, model_output_dir, a
         for dataset in dataset_path:
             progress.update(task, description=f"Training dataset {dataset}", advance=0)
             call_external_training(model_path, dataset, checkpoint_dir, model_output_dir, adapter_output_dir, seed,
-                                   shuffle, experiment_id, subset_train, subset_val, train_batch_size, eval_batch_size,
+                                   shuffle, experiment_id, subset_train, subset_val, train_batch_size,
+                                   gradient_accumulation_steps, eval_batch_size,
                                    epochs, eval_steps, init_lr, early_stop, early_stop_steps, weight_decay, bf16, fp16,
                                    keep_checkpoints)
             progress.update(task, advance=1)
@@ -280,11 +290,11 @@ def train_datasets(model_path, dataset_path, checkpoint_dir, model_output_dir, a
 @click.option('--adapter-output-dir', type=click.Path(file_okay=False, dir_okay=True, writable=True),
               default='output/adapter')
 @click.option("--seed", type=int, default=42)
-@click.option("--shuffle", type=bool, default=True)
+@click.option("--shuffle", type=bool, default=False)
 @click.option("--subset-train", type=float, default=-1)
 @click.option("--subset-val", type=float, default=-1)
 @click.option("--train-batch-size", type=int, default=12)
-@click.option("--eval-batch-size", type=int, default=12)
+@click.option("--eval-batch-size", type=int, default=24)
 @click.option("--epochs", type=int, default=30)
 @click.option("--eval-steps", type=int, default=500)
 @click.option("--init-lr", type=float, default=1e-4)
@@ -339,9 +349,6 @@ def resume_training(run_id, model_path, dataset_path, checkpoint_dir, model_outp
         mlflow.log_params(params)
         mlflow.log_param("1_model_trainable_params", model.num_parameters(only_trainable=True))
         mlflow.log_param("1_model_total_params", model.num_parameters(only_trainable=False))
-        mlflow.log_input(mlflow.data.from_huggingface(dataset_train, targets='labels'), context="training")
-        mlflow.log_input(mlflow.data.from_huggingface(dataset_val, targets='labels'), context="validation")
-
         callbacks = [HassioCallback]
         if early_stop:
             callbacks.append(EarlyStoppingCallback(early_stop_steps))
@@ -374,7 +381,7 @@ def resume_training(run_id, model_path, dataset_path, checkpoint_dir, model_outp
             trainer = AdapterTrainer(
                 model=model,
                 args=training_args,
-                train_dataset=dataset_train,
+                train_dataset=dataset_train.sort("length", reverse=True),
                 eval_dataset=dataset_val,
                 # compute_metrics=compute_accuracy,
                 data_collator=data_collator,
@@ -385,7 +392,7 @@ def resume_training(run_id, model_path, dataset_path, checkpoint_dir, model_outp
             trainer = Seq2SeqTrainer(
                 model=model,
                 args=training_args,
-                train_dataset=dataset_train,
+                train_dataset=dataset_train.sort("length", reverse=True),
                 eval_dataset=dataset_val,
                 # compute_metrics=compute_accuracy,
                 data_collator=data_collator,
@@ -409,6 +416,9 @@ def resume_training(run_id, model_path, dataset_path, checkpoint_dir, model_outp
             import shutil
             for f in glob.glob(os.path.join(checkpoint_dir, "checkpoint-*")):
                 shutil.rmtree(f)
+
+        mlflow.log_input(mlflow.data.from_huggingface(dataset_train, targets='labels'), context="training")
+        mlflow.log_input(mlflow.data.from_huggingface(dataset_val, targets='labels'), context="validation")
 
 
 if __name__ == '__main__':
