@@ -38,9 +38,10 @@ def cli():
 @click.option("--bf16", type=bool, default=True)
 @click.option("--fp16", type=bool, default=False)
 @click.option("--keep-checkpoints", type=bool, default=False)
+@click.option("--name", type=str, default="")
 def train(model_path, dataset_path, checkpoint_dir, model_output_dir, adapter_output_dir, seed, shuffle, experiment_id,
           subset_train, subset_val, train_batch_size, gradient_accumulation_steps, eval_batch_size,
-          epochs, eval_steps, init_lr, early_stop, early_stop_steps, weight_decay, bf16, fp16, keep_checkpoints):
+          epochs, eval_steps, init_lr, early_stop, early_stop_steps, weight_decay, bf16, fp16, keep_checkpoints, name):
     """
     Train LLMs
 
@@ -79,6 +80,11 @@ def train(model_path, dataset_path, checkpoint_dir, model_output_dir, adapter_ou
           f"{model.num_parameters(only_trainable=True) / model.num_parameters(only_trainable=False) * 100:.2f}%")
 
     with mlflow.start_run(experiment_id=experiment_id):
+        if name:
+            mlflow.set_tag('mlflow.runName', name)
+        else:
+            mlflow.set_tag('mlflow.runName', f"{os.path.splitext(os.path.split(model_path)[1])[0]}_"
+                                             f"{os.path.splitext(os.path.split(dataset_path)[1])[0]}")
         mlflow.log_params(params)
         mlflow.log_param("1_model_trainable_params", model.num_parameters(only_trainable=True))
         mlflow.log_param("1_model_total_params", model.num_parameters(only_trainable=False))
