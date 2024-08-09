@@ -121,7 +121,7 @@ class DefaultTestSet(DefaultDataset):
     test_path = "/home/jfeil/MasterThesis/dataset/v5_filtered_shuffled/test.parquet"
 
     @classmethod
-    def _data_loading(cls, shuffle: bool, seed: int, subset_test: float, max_length=250) -> Dataset:
+    def _data_loading(cls, shuffle: bool, seed: int, subset_test: float) -> Dataset:
         # noinspection PyTypeChecker
         dataset_test = Dataset.from_parquet(cls.test_path, split="test")
 
@@ -131,18 +131,19 @@ class DefaultTestSet(DefaultDataset):
         if subset_test > 0:
             dataset_test = cls._subset(dataset_test, subset_test)
 
-        if max_length > 0:
-            dataset_test = dataset_test.filter(lambda x: x["length"] <= max_length)
-
         return dataset_test
 
     @classmethod
     def create_dataset(cls, tokenizer, shuffle: bool, seed: int,
-                       subset_test: int | float = -1, cache=True) -> Dataset:
+                       subset_test: int | float = -1, max_length=250, cache=True) -> Dataset:
         cls.tokenizer = tokenizer
         dataset_test = cls._data_loading(shuffle, seed, subset_test)
+        dataset_test = cls._prepare_data(dataset_test, cache=cache)
 
-        return cls._prepare_data(dataset_test, cache=cache)
+        if max_length > 0:
+            dataset_test = dataset_test.filter(lambda x: x["length"] <= max_length)
+
+        return dataset_test
 
 
 class DefinitionTestSet(DefaultTestSet):
