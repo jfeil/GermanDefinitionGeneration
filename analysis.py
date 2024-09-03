@@ -59,7 +59,8 @@ def score(experiments, selected_runs, debug):
                     if collected_data[dataset_id].columns.empty or column not in collected_data[dataset_id].columns.levels[0]:
                         collected_data[dataset_id][list(itertools.product([column], statistic_fns.keys()))] = np.NaN
 
-                collected_data[dataset_id] = pd.concat([collected_data[dataset_id], pd.DataFrame([new_row], index=[run_name])])
+                collected_data[dataset_id] = pd.concat([collected_data[dataset_id], pd.DataFrame([new_row], index=[
+                    f"{run_name} ({run})"])])
 
     pandasgui.show(**collected_data)
 
