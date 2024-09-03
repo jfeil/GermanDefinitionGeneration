@@ -3,12 +3,12 @@ from src.model_training.datasets.default import DefinitionTestSet as TemplateTes
 
 
 class DefinitionDataset(TemplateTrain):
-    train_path = "/home/jfeil/MasterThesis/dataset_distillation/v1/train.parquet"
-    val_path = "/home/jfeil/MasterThesis/dataset_distillation/v1/val.parquet"
+    train_path = "/home/jfeil/MasterThesis/dataset_distillation/v1+v5_wiktionary/train.parquet"
+    val_path = "/home/jfeil/MasterThesis/dataset_distillation/v1+v5_wiktionary/val.parquet"
 
 
 class DefinitionTestSet(TemplateTest):
-    test_path = "/home/jfeil/MasterThesis/dataset_distillation/v1/test.parquet"
+    test_path = "/home/jfeil/MasterThesis/dataset/v5_filtered_shuffled/test.parquet"
 
 
 if __name__ == '__main__':
