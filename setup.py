@@ -11,7 +11,7 @@ setup(
         'console_scripts': [
             'training = training:cli',
             'evaluate = evaluation:cli',
-            'analysis = analysis:evaluate',
+            'analysis = analysis:cli',
             'batch-runner = batch_runner:main',
         ],
     },
