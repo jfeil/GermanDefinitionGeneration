@@ -73,7 +73,7 @@ class DefaultDataset:
         context_word, title, context_sentence, gt = cls._cleanup(examples)
         input_texts = [prompt_pattern(c, w, pattern=cls.prompt_pattern) for c, w in zip(context_sentence, context_word)]
         return {"prompt": input_texts, "title": title, "context_word": context_word,
-                "context_sentence": context_sentence, "gt": gt}
+                "context_sentence": context_sentence, "gt": gt, "length": [0]*len(context_word)}
 
     @classmethod
     def _prepare_data(cls, dataset: Dataset, cache=True) -> Dataset:
