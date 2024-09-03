@@ -8,18 +8,14 @@ from src.ha_utils import set_sensor_state, Input
 def execute_bash_line(line):
     """Executes a single line of a bash script."""
     process = subprocess.Popen(line, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-    # Print stdout line by line as it is generated
-    for stdout_line in process.stdout:
-        print(stdout_line.decode(), end='')
-
-    # Wait for the process to finish and get the exit code
-    process.wait()
+    stdout, stderr = process.communicate()
 
     if process.returncode != 0:
-        stderr = process.stderr.read()
         print(f"Error executing line: {line}")
-        print(f"Error: {stderr.strip()}")
+        print(f"Error: {stderr.decode().strip()}")
+    else:
+        print(f"Output: {stdout.decode().strip()}")
+
 
 @click.command()
 @click.argument('script_path', type=click.Path(exists=True, file_okay=True, dir_okay=False))
