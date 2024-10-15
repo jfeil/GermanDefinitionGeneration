@@ -8,8 +8,6 @@ import numpy as np
 import pandas as pd
 import pandasgui
 
-from src.mlflow_utils import download_run_data
-
 
 statistic_fns = {
     "Average": pd.Series.mean,
@@ -28,7 +26,7 @@ def cli():
 @click.option('-r', '--run', 'selected_runs', type=str, multiple=True, default=[])
 @click.option('--debug', type=bool, default=False)
 def score(experiments, selected_runs, debug):
-    from src.mlflow_utils import mlflow, get_run_list, download_run_artifact
+    from src.mlflow_utils import mlflow, get_run_list, download_run_artifact, download_run_data
 
     if debug:
         logging.basicConfig(level=logging.DEBUG)
@@ -70,7 +68,7 @@ def score(experiments, selected_runs, debug):
 @click.option('-r', '--run', 'selected_runs', type=str, multiple=True, default=[])
 @click.option('--debug', type=bool, default=False)
 def overview(experiments, selected_runs, debug):
-    from src.mlflow_utils import mlflow, get_run_list, download_run_artifact
+    from src.mlflow_utils import mlflow, get_run_list, download_run_data
 
     if debug:
         logging.basicConfig(level=logging.DEBUG)
@@ -94,11 +92,7 @@ def overview(experiments, selected_runs, debug):
                 if not evaluation_data:
                     raise RuntimeError(f"Could not download evaluation data for run {run}")
 
-                df_name = f"[{exp_id}] {run_name} ({dataset_id})"
-                custom_index = 1
-                while df_name in collected_data:
-                    df_name = f"[{exp_id}] {run_name} ({dataset_id}) [{custom_index}]"
-                    custom_index += 1
+                df_name = f"[{exp_id}] {run_name} ({run}|||{dataset_id})"
                 collected_data[df_name] = pd.DataFrame(data=evaluation_data['data'], columns=evaluation_data['columns'])
 
     collected_data = dict(sorted(collected_data.items(), key=lambda x: x[0]))

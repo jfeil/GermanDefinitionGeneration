@@ -90,3 +90,21 @@ def sanitize_context_word(context) -> str:
 
 def sanitize_prediction(pred: str) -> str:
     return del_(pred, ['</s>', '<|eot_id|>'])
+
+
+class ModelInformation:
+    def __init__(self, type_, name, example_prompt="", question_prompt="", system_prompt=""):
+        self.type = type_
+        self.name = name
+        self.example_prompt = example_prompt
+        self.question_prompt = question_prompt
+        self.system_prompt = system_prompt
+
+    def to_dict(self):
+        return {
+            "type": self.type,
+            "name": self.name,
+            "example_prompt": self.example_prompt,
+            "question_prompt": self.question_prompt,
+            "system_prompt": self.system_prompt,
+        }

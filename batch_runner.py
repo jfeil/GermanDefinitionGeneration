@@ -23,14 +23,14 @@ def main(script_path):
     """Executes a bash script line by line with the possibility to add custom code between each line."""
     with open(script_path, 'r') as file:
         lines = file.readlines()
-    lines = list(filter(lambda x: not x.startswith("#") or not x, lines))
+    lines = list(filter(lambda x: not x.startswith("#") or x.strip() != "", lines))
     set_sensor_state(0, len(lines), Input.TOTAL_INPUT)
     for i, line in enumerate(lines):
         # Strip the line to avoid issues with leading/trailing spaces and newlines
         line = line.strip()
 
+        set_sensor_state(i, len(lines), Input.TOTAL_INPUT)
         if line and not line.startswith("#"):  # Skip empty lines and comments
-            set_sensor_state(i, len(lines), Input.TOTAL_INPUT)
             print(f"Executing bash line: {line}")
             execute_bash_line(line)
 

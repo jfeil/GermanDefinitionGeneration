@@ -495,19 +495,24 @@ def parameter_tuning(run, test_set, experiment, batch_size, seed, shuffle, subse
         {"name": "Multinomial search", "do_sample": True, "num_beams": 1, "max_new_tokens": 100},
         {"name": "Beam-search decoding", "num_beams": 5, "max_new_tokens": 50},
         {"name": "Beam-search multinomial sampling", "do_sample": True, "num_beams": 5},
-        {"name": "Diverse beam search decoding", "num_beams": 5, "num_beam_groups": 5, "max_new_tokens": 30,
-         "diversity_penalty": 1.0},
-        {"name": "Repetition penalty", "num_beams": 5, "max_new_tokens": 50, "repetition_penalty": 1.1},
+        {"name": "Diverse beam search decoding", "num_beams": 5, "num_beam_groups": 5, "max_new_tokens": 30, "diversity_penalty": 1.0},
         {"name": "Repetition penalty", "num_beams": 5, "max_new_tokens": 50, "repetition_penalty": 1.2},
         {"name": "Repetition penalty", "num_beams": 5, "max_new_tokens": 50, "repetition_penalty": 1.3},
         {"name": "Repetition penalty", "num_beams": 5, "max_new_tokens": 50, "repetition_penalty": 1.4},
         {"name": "Repetition penalty", "num_beams": 5, "max_new_tokens": 50, "repetition_penalty": 1.5},
-        {"name": "Encoder Repetition penalty", "num_beams": 5, "max_new_tokens": 50, "encoder_repetition_penalty": 1.1},
-        {"name": "Encoder Repetition penalty", "num_beams": 5, "max_new_tokens": 50, "encoder_repetition_penalty": 1.2},
+        {"name": "Repetition penalty", "num_beams": 5, "max_new_tokens": 50, "repetition_penalty": 2.0},
+        {"name": "Repetition penalty", "num_beams": 5, "max_new_tokens": 50, "repetition_penalty": 4.0},
+        {"name": "Sample Repetition penalty", "do_sample": True, "num_beams": 5, "max_new_tokens": 50, "repetition_penalty": 1.2},
+        {"name": "Sample Repetition penalty", "do_sample": True, "num_beams": 5, "max_new_tokens": 50, "repetition_penalty": 1.3},
+        {"name": "Sample Repetition penalty", "do_sample": True, "num_beams": 5, "max_new_tokens": 50, "repetition_penalty": 1.4},
+        {"name": "Sample Repetition penalty", "do_sample": True, "num_beams": 5, "max_new_tokens": 50, "repetition_penalty": 1.5},
+        {"name": "Sample Repetition penalty", "do_sample": True, "num_beams": 5, "max_new_tokens": 50, "repetition_penalty": 2.0},
+        {"name": "Sample Repetition penalty", "do_sample": True, "num_beams": 5, "max_new_tokens": 50, "repetition_penalty": 4.0},
+        {"name": "Encoder Repetition penalty", "num_beams": 5, "max_new_tokens": 50, "encoder_repetition_penalty": 0.1},
+        {"name": "Encoder Repetition penalty", "num_beams": 5, "max_new_tokens": 50, "encoder_repetition_penalty": 0.5},
+        {"name": "Encoder Repetition penalty", "num_beams": 5, "max_new_tokens": 50, "encoder_repetition_penalty": 1.7},
         {"name": "Encoder Repetition penalty", "num_beams": 5, "max_new_tokens": 50, "encoder_repetition_penalty": 1.3},
-        {"name": "Encoder Repetition penalty", "num_beams": 5, "max_new_tokens": 50, "encoder_repetition_penalty": 1.4},
         {"name": "Encoder Repetition penalty", "num_beams": 5, "max_new_tokens": 50, "encoder_repetition_penalty": 1.5},
-        {"name": "Temperature", "do_sample": True, "num_beams": 5, "max_new_tokens": 50, "temperature": 0.01},
         {"name": "Temperature", "do_sample": True, "num_beams": 5, "max_new_tokens": 50, "temperature": 0.1},
         {"name": "Temperature", "do_sample": True, "num_beams": 5, "max_new_tokens": 50, "temperature": 0.3},
         {"name": "Temperature", "do_sample": True, "num_beams": 5, "max_new_tokens": 50, "temperature": 0.5},
@@ -517,13 +522,17 @@ def parameter_tuning(run, test_set, experiment, batch_size, seed, shuffle, subse
         {"name": "Temperature", "do_sample": True, "num_beams": 5, "max_new_tokens": 50, "temperature": 1.2},
         {"name": "Temperature", "do_sample": True, "num_beams": 5, "max_new_tokens": 50, "temperature": 1.4},
         {"name": "Temperature", "do_sample": True, "num_beams": 5, "max_new_tokens": 50, "temperature": 1.5},
+
     ]
 
     def data_generator():
         for item in dataset_test:
             yield item["prompt"]
 
-    for strategy in tqdm(strategies):
+    from src.ha_utils import set_sensor_state
+    from src.ha_utils import Input
+    set_sensor_state(0, len(strategies), Input.TOTAL_INPUT)
+    for i, strategy in enumerate(tqdm(strategies)):
         test_predictions = {
             'title': dataset_test['title'],
             'context_sentence': dataset_test['context_sentence'],
@@ -531,6 +540,7 @@ def parameter_tuning(run, test_set, experiment, batch_size, seed, shuffle, subse
             'gt': dataset_test['gt'],
             'prediction': []
         }
+        set_sensor_state(i, len(strategies), Input.TOTAL_INPUT)
 
         logging.info("Currently used strategy: %s" % strategy)
         used_strategy = dict(strategy)
@@ -547,6 +557,7 @@ def parameter_tuning(run, test_set, experiment, batch_size, seed, shuffle, subse
 
     del pipe, model, tokenizer
     torch.cuda.empty_cache()
+    set_sensor_state(len(strategies), len(strategies), Input.TOTAL_INPUT)
 
 
 @cli.command()
